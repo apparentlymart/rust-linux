@@ -64,6 +64,11 @@ fn generate_constants_rs(
     for (k, v) in raw_vars.iter() {
         if k.starts_with("__NR_") {
             let (_, name) = k.split_at(5);
+            writeln!(
+                f,
+                "/// The system call number for `{}` on this platform.",
+                name
+            )?;
             let name = name.to_uppercase();
             writeln!(f, "pub const {}: V = {};", name, v)?;
         }
