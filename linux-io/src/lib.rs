@@ -1,11 +1,34 @@
 //! Lightweight but safe abstractions around Linux system calls related to
 //! file descriptors.
 //!
+//! This goal of this crate is to expose a convenient API while skipping any
+//! unnecessary abstraction. In most cases calls to functions in this crate
+//! should reduce to inline system calls and some minimal argument and result
+//! conversion code, and the results should be generally unsurprising to anyone
+//! who is familiar with the underlying system call behavior.
+//!
+//! The functions in this crate wrap functions in crate [`linux_unsafe`] to
+//! actually make the system calls, and so the platform support for this
+//! crate is limited to what that other crate supports.
+//!
 //! Implements standard library I/O traits by default, but can be made friendly
 //! to `no_std` environments by disabling the default feature `std`.
+//!
+//! The initial versions of this crate are focused only on basic file
+//! operations, until the API for that feels settled. In later releases the
+//! scope will hopefully increase to cover most or all of the system calls
+//! that work with file descriptors.
 #![no_std]
 
 /// An encapsulated Linux file descriptor.
+///
+/// The methods of `File` are largely just thin wrappers around Linux system
+/// calls that work with file descriptors. Aside from type conversions to make
+/// the API safer and more ergonomic there are no additional userspace
+/// abstractions such as buffering.
+///
+/// When the `std` crate feature is enabled, a `File` also implements the
+/// `std:io` traits `Read`, `Write`, and `Seek`.
 pub struct File {
     fd: linux_unsafe::int,
 }
@@ -13,11 +36,25 @@ pub struct File {
 use linux_unsafe::raw::V;
 
 impl File {
+    /// Wrap an existing raw file descriptor into a [`File`].
+    ///
+    /// Safety:
+    /// - The given file descriptor must not belong to an active standard
+    ///   library file or any similar wrapping abstraction.
+    /// - The file descriptor must remain open and valid for the full lifetime
+    ///   of the `File` object.
+    /// - The same file descriptor must not be wrapped in instances of
+    ///   `File`, because the first one to be dropped will close the file
+    ///   descriptor.
     #[inline]
     pub unsafe fn from_raw_fd(fd: linux_unsafe::int) -> Self {
         File { fd }
     }
 
+    /// Create a new file using the `creat` system call.
+    ///
+    /// This function exposes the raw `mode` argument from the underlying
+    /// system call, which the caller must populate appropriately.
     #[inline]
     pub fn create_raw(path: &[u8], mode: linux_unsafe::mode_t) -> Result<Self> {
         let path_raw = path.as_ptr() as *const linux_unsafe::char;
@@ -27,6 +64,10 @@ impl File {
             .map_err(|e| e.into())
     }
 
+    /// Open a file using the `open` system call.
+    ///
+    /// This function exposes the raw `flags` and `mode` arguments from the
+    /// underlying system call, which the caller must populate appropriately.
     #[inline]
     pub fn open_raw(
         path: &[u8],
@@ -46,16 +87,29 @@ impl File {
             .map_err(|e| e.into())
     }
 
+    /// Consumes the file object and closes the underlying file descriptor.
+    ///
+    /// If `close` fails then the file descriptor is always leaked, because
+    /// there is no way to recover it once consumed.
     #[inline]
     pub fn close(mut self) -> Result<()> {
-        unsafe { self.close_mut() }
+        unsafe { self.close_mut() }?;
+        // Must "forget" the file because otherwise the Drop impl will
+        // try to close it again, and perhaps close an unrelated file that
+        // has been allocated the same fd in the meantime.
+        core::mem::forget(self);
+        Ok(())
     }
 
     /// Closes the underlying file descriptor without consuming it.
     ///
-    /// Safety: Callers must not use the file object again after calling this
-    /// method, because the file descriptor will either be dangling or will
-    /// be referring to some other unrelated file.
+    /// Safety:
+    /// - Callers must pass the file to [`core::mem::forget`] immediately
+    ///   after calling this function to prevent the implicit `close` in
+    ///   the [`Drop`] implementation.
+    /// - Callers must not use the file object again after calling this
+    ///   method; file descriptor will either be dangling or will be referring
+    ///   to some other unrelated file.
     #[inline(always)]
     pub unsafe fn close_mut(&mut self) -> Result<()> {
         let result = unsafe { linux_unsafe::close(self.fd) };
@@ -64,6 +118,8 @@ impl File {
             .map_err(|e| e.into())
     }
 
+    /// Read some bytes from the file into the given buffer, returning the
+    /// number of bytes that were read.
     #[inline]
     pub fn read(&mut self, buf: &mut [u8]) -> Result<usize> {
         let buf_ptr = buf.as_mut_ptr() as *mut linux_unsafe::void;
@@ -74,6 +130,7 @@ impl File {
             .map_err(|e| e.into())
     }
 
+    /// Change the current read/write position of the file.
     #[inline]
     pub fn seek(&mut self, pos: impl Into<SeekFrom>) -> Result<u64> {
         let pos = pos.into();
@@ -113,6 +170,8 @@ impl File {
         }
     }
 
+    /// Tell the kernel to flush any in-memory buffers and caches for the
+    /// file.
     #[inline]
     pub fn sync(&mut self) -> Result<()> {
         let result = unsafe { linux_unsafe::syncfs(self.fd) };
@@ -121,6 +180,8 @@ impl File {
             .map_err(|e| e.into())
     }
 
+    /// Write bytes from the given buffer to the file, returning how many bytes
+    /// were written.
     #[inline]
     pub fn write(&mut self, buf: &[u8]) -> Result<usize> {
         let buf_ptr = buf.as_ptr() as *const linux_unsafe::void;
@@ -192,6 +253,10 @@ impl std::os::fd::IntoRawFd for File {
 pub type Result<T> = core::result::Result<T, Error>;
 
 /// Represents an error code directly from the kernel.
+///
+/// This is a lower-level representation of an error for `no_std` situations.
+/// If the crate feature `std` is enabled then `Error` can convert to
+/// `std::io::Error`.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 #[repr(transparent)]
 pub struct Error(pub i32);
@@ -225,6 +290,10 @@ impl Into<std::io::Error> for Error {
 }
 
 /// Used with [`File::seek`] to specify the starting point and offset.
+///
+/// This is just a copy of `std::io::SeekFrom`, included here to allow this
+/// crate to work in `no_std` environments. If this crate's `std` feature
+/// is enabled then `SeekFrom` can convert to and from `std::io::SeekFrom`.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum SeekFrom {
     Start(u64),
@@ -265,6 +334,17 @@ impl From<std::io::SeekFrom> for SeekFrom {
             std::io::SeekFrom::Start(v) => Self::Start(v),
             std::io::SeekFrom::End(v) => Self::End(v),
             std::io::SeekFrom::Current(v) => Self::Current(v),
+        }
+    }
+}
+
+#[cfg(feature = "std")]
+impl Into<std::io::SeekFrom> for SeekFrom {
+    fn into(self) -> std::io::SeekFrom {
+        match self {
+            SeekFrom::Start(v) => std::io::SeekFrom::Start(v),
+            SeekFrom::End(v) => std::io::SeekFrom::End(v),
+            SeekFrom::Current(v) => std::io::SeekFrom::Current(v),
         }
     }
 }
