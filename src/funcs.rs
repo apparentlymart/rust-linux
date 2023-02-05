@@ -15,6 +15,12 @@ pub unsafe fn read(fd: int, buf: *const ffi::c_void, count: size_t) -> ssize_t {
     raw::syscall3(raw::READ, fd as raw::V, buf as raw::V, count as raw::V) as ssize_t
 }
 
+/// Reposition the read/write offset for a file.
+#[inline(always)]
+pub unsafe fn lseek(fd: int, offset: off_t, whence: int) -> off_t {
+    raw::syscall3(raw::LSEEK, fd as raw::V, offset as raw::V, whence as raw::V) as off_t
+}
+
 /// Write to a file descriptor.
 #[inline(always)]
 pub unsafe fn write(fd: int, buf: *const ffi::c_void, count: size_t) -> ssize_t {
