@@ -1,0 +1,11 @@
+[package]
+name = "linux-io"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+linux-unsafe = "0.1.0"
+
+[features]
+default = ["std"]
+std = []
