@@ -1,6 +1,7 @@
 [package]
-name = "linux-sys"
+name = "linux-unsafe"
 version = "0.1.0"
 edition = "2021"
 
-[dependencies]
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu", "i686-unknown-linux-gnu", "armv7-unknown-linux-gnueabihf", "riscv64gc-unknown-linux-gnu"]
