@@ -205,6 +205,22 @@ impl Drop for File {
     }
 }
 
+/// [`File`] implements [`core::fmt::Write`] by passing UTF-8 encoded bytes
+/// directly to the `write` method.
+impl core::fmt::Write for File {
+    fn write_str(&mut self, s: &str) -> core::fmt::Result {
+        let mut bytes = s.as_bytes();
+        while !bytes.is_empty() {
+            let n = match self.write(bytes) {
+                Ok(n) => n,
+                Err(e) => return Err(e.into()),
+            };
+            bytes = &bytes[n..];
+        }
+        Ok(())
+    }
+}
+
 #[cfg(feature = "std")]
 extern crate std;
 
@@ -278,6 +294,13 @@ impl From<i32> for Error {
     #[inline(always)]
     fn from(value: i32) -> Self {
         Self::new(value)
+    }
+}
+
+impl Into<core::fmt::Error> for Error {
+    #[inline(always)]
+    fn into(self) -> core::fmt::Error {
+        core::fmt::Error
     }
 }
 
