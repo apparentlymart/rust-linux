@@ -11,7 +11,7 @@ pub unsafe fn getpid() -> pid_t {
 
 /// Read from a file descriptor.
 #[inline(always)]
-pub unsafe fn read(fd: int, buf: *const ffi::c_void, count: size_t) -> ssize_t {
+pub unsafe fn read(fd: int, buf: *mut ffi::c_void, count: size_t) -> ssize_t {
     raw::syscall3(raw::READ, fd as raw::V, buf as raw::V, count as raw::V) as ssize_t
 }
 
