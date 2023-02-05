@@ -104,22 +104,27 @@ pub unsafe fn syscall6(n: V, a0: V, a1: V, a2: V, a3: V, a4: V, a5: V) -> V {
     ret
 }
 
-/// Call into a system function with seven arguments.
-#[inline(always)]
-pub unsafe fn syscall7(n: V, a0: V, a1: V, a2: V, a3: V, a4: V, a5: V, a6: V) -> V {
-    let ret: V;
-    asm!(
-        "svc 0",
-        in("r7") n,
-        inout("r0") a0 => ret,
-        in("r1") a1,
-        in("r2") a2,
-        in("r3") a3,
-        in("r4") a4,
-        in("r5") a5,
-        in("r6") a6,
-    );
-    ret
+/// Given a result value from a system call that follows the standard error
+/// return convention for this platform, returns either the given value
+/// verbatim or the kernel error code extracted from it.
+///
+/// For ARM, the standard way to signal an error is to return a result
+/// between -4095 and -1 inclusive, with all other values representing
+/// successful results.
+///
+/// A small number of system calls signal errors in different ways. This
+/// function is not compatible with the results from those calls.
+#[inline]
+pub fn unpack_standard_result(raw: V) -> Result<V, i32> {
+    if (raw as u64) >= ((-4095 as i64) as u64) {
+        let err = -(raw as i32);
+        Err(err)
+    } else {
+        Ok(raw)
+    }
 }
 
 include!(concat!(env!("OUT_DIR"), "/syscall_nrs_arm.rs"));
+
+// Architecture-specific types and constants
+pub(crate) mod types {}

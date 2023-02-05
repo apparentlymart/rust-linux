@@ -69,6 +69,10 @@ fn generate_constants_rs(
                 "/// The system call number for `{}` on this platform.",
                 name
             )?;
+            // We also define an extra configuration pair for each system
+            // call name, so that we can adapt the calls to wrappers to
+            // only include those that make sense for the current platform.
+            println!("cargo:rustc-cfg=have_syscall={:?}", name);
             let name = name.to_uppercase();
             writeln!(f, "pub const {}: V = {};", name, v)?;
         }

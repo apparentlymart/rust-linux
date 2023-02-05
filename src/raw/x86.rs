@@ -101,4 +101,27 @@ pub unsafe fn syscall6(n: V, a0: V, a1: V, a2: V, a3: V, a4: V, a5: V) -> V {
     ret
 }
 
+/// Given a result value from a system call that follows the standard error
+/// return convention for this platform, returns either the given value
+/// verbatim or the kernel error code extracted from it.
+///
+/// For x86, the standard way to signal an error is to return a result
+/// between -4095 and -1 inclusive, with all other values representing
+/// successful results.
+///
+/// A small number of system calls signal errors in different ways. This
+/// function is not compatible with the results from those calls.
+#[inline]
+pub fn unpack_standard_result(raw: V) -> Result<V, i32> {
+    if (raw as u64) >= ((-4095 as i64) as u64) {
+        let err = -(raw as i32);
+        Err(err)
+    } else {
+        Ok(raw)
+    }
+}
+
 include!(concat!(env!("OUT_DIR"), "/syscall_nrs_x86.rs"));
+
+// Architecture-specific types and constants
+pub(crate) mod types {}
