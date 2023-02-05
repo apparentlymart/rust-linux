@@ -1,0 +1,44 @@
+extern crate std;
+use std::vec::Vec;
+use std::{os::unix::prelude::OsStrExt, path::PathBuf};
+
+use tempfile::tempdir;
+
+use super::*;
+
+#[test]
+fn create_write_close_open_read_close() {
+    use std::io::{Read, Write};
+
+    let message = b"Hello!\n";
+
+    let dir = tempdir().unwrap();
+    let mut filename: PathBuf = dir.path().into();
+    filename.push("test.txt");
+    use std::println;
+    println!("temporary file is {:?}", filename);
+    // This crate is only for Linux systems, so it's safe to assume that
+    // an OsStr is raw filename bytes as the kernel will expect.
+    let filename_raw = filename.as_os_str().as_bytes();
+
+    let mut f = File::create_raw(filename_raw, 0o666)
+        .map_err(|e| e.into_std_io_error())
+        .expect("failed to create file");
+    f.write_all(message).expect("failed to write to file");
+    f.close()
+        .map_err(|e| e.into_std_io_error())
+        .expect("failed to close file");
+
+    let mut f = File::open_raw(filename_raw, linux_unsafe::O_RDONLY, 0)
+        .map_err(|e| e.into_std_io_error())
+        .expect("failed to reopen file");
+    let mut v: Vec<u8> = Vec::new();
+    f.read_to_end(&mut v).expect("failed to read from file");
+    f.close()
+        .map_err(|e| e.into_std_io_error())
+        .expect("failed to close file the second time");
+
+    dir.close().expect("failed to clean temporary directory");
+
+    assert_eq!(v.as_slice(), message, "wrong file contents");
+}
