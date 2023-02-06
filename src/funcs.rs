@@ -65,8 +65,15 @@ pub unsafe fn poll(fds: *mut pollfd, nfds: nfds_t, timeout: int) -> int {
 /// Read from a file descriptor.
 #[cfg(have_syscall = "read")]
 #[inline(always)]
-pub unsafe fn read(fd: int, buf: *mut ffi::c_void, count: size_t) -> ssize_t {
+pub unsafe fn read(fd: int, buf: *mut void, count: size_t) -> ssize_t {
     raw::syscall3(raw::READ, fd as raw::V, buf as raw::V, count as raw::V) as ssize_t
+}
+
+/// Read from a file descriptor into multiple buffers.
+#[cfg(have_syscall = "readv")]
+#[inline(always)]
+pub unsafe fn readv(fd: int, iov: *mut iovec, iovcount: int) -> size_t {
+    raw::syscall3(raw::READV, fd as raw::V, iov as raw::V, iovcount as raw::V) as size_t
 }
 
 /// Commit all filesystem caches to disk.
@@ -97,11 +104,18 @@ pub unsafe fn write(fd: int, buf: *const ffi::c_void, count: size_t) -> ssize_t 
     raw::syscall3(raw::WRITE, fd as raw::V, buf as raw::V, count as raw::V) as ssize_t
 }
 
-/// A special variant of llseek for 32-bit platforms that need the 64-bit offset
-/// split into two arguments.
+/// Write to a file descriptor from multiple buffers.
+#[cfg(have_syscall = "writev")]
+#[inline(always)]
+pub unsafe fn writev(fd: int, iov: *const iovec, iovcount: int) -> size_t {
+    raw::syscall3(raw::WRITEV, fd as raw::V, iov as raw::V, iovcount as raw::V) as size_t
+}
+
+/// A special variant of [`lseek`] for 32-bit platforms that need the 64-bit
+/// offset split into two arguments.
 ///
 /// This function is not available at all on 64-bit platforms, because
-/// [`lseek`] is sufficient for 64-bit offsets there.
+/// `lseek` is sufficient for 64-bit offsets there.
 #[cfg(have_syscall = "_llseek")]
 #[inline(always)]
 pub unsafe fn _llseek(

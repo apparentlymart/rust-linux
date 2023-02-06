@@ -100,5 +100,11 @@ pub const POLLERR: short = 0x0008;
 pub const POLLHUP: short = 0x0010;
 pub const POLLNVAL: short = 0x0020;
 
+#[repr(C)]
+pub struct iovec {
+    iov_base: *mut void,
+    iov_len: size_t,
+}
+
 // Also include architecture-specific types.
 pub use crate::raw::types::*;
