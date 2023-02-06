@@ -85,9 +85,9 @@ pub const O_NDELAY: int = O_NONBLOCK;
 /// A file descriptor request object for use with [`crate::poll`].
 #[repr(C)]
 pub struct pollfd {
-    fd: int,
-    events: short,
-    revents: short,
+    pub fd: int,
+    pub events: short,
+    pub revents: short,
 }
 
 // The type used to specify the number of file descriptors when calling [`crate::poll`].
@@ -103,8 +103,8 @@ pub const POLLNVAL: short = 0x0020;
 /// A type used with [`crate::readv`] and [`crate::writev`].
 #[repr(C)]
 pub struct iovec {
-    iov_base: *mut void,
-    iov_len: size_t,
+    pub iov_base: *mut void,
+    pub iov_len: size_t,
 }
 
 // Also include architecture-specific types.
