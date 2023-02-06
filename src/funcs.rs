@@ -17,6 +17,25 @@ pub unsafe fn creat(pathname: *const char, mode: mode_t) -> int {
     raw::syscall2(raw::CREAT, pathname as raw::V, mode as raw::V) as int
 }
 
+/// Immediately terminate the current thread, without giving Rust or libc
+/// any opportunity to run destructors or other cleanup code.
+#[cfg(have_syscall = "exit")]
+#[inline(always)]
+pub unsafe fn exit(status: int) -> ! {
+    raw::syscall1(raw::EXIT, status as raw::V);
+    unreachable!()
+}
+
+/// Immediately terminate all threads in the current process's thread group,
+/// without giving Rust or libc any opportunity to run destructors or other
+/// cleanup code.
+#[cfg(have_syscall = "exit_group")]
+#[inline(always)]
+pub unsafe fn exit_group(status: int) -> ! {
+    raw::syscall1(raw::EXIT_GROUP, status as raw::V);
+    unreachable!()
+}
+
 /// Get the process id (PID) of the current process.
 #[cfg(have_syscall = "getpid")]
 #[inline(always)]
