@@ -87,6 +87,15 @@ impl File {
             .map_err(|e| e.into())
     }
 
+    /// Consumes the file object and returns the underlying file descriptor
+    /// without closing it.
+    #[inline(always)]
+    pub fn into_raw_fd(self) -> linux_unsafe::int {
+        let ret = self.fd;
+        core::mem::forget(self);
+        ret
+    }
+
     /// Consumes the file object and closes the underlying file descriptor.
     ///
     /// If `close` fails then the file descriptor is always leaked, because
@@ -287,7 +296,7 @@ impl std::os::fd::FromRawFd for File {
 #[cfg(feature = "std")]
 impl std::os::fd::IntoRawFd for File {
     fn into_raw_fd(self) -> std::os::fd::RawFd {
-        self.fd as std::os::fd::RawFd
+        self.into_raw_fd() as std::os::fd::RawFd
     }
 }
 
