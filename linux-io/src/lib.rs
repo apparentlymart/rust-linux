@@ -20,6 +20,9 @@
 //! that work with file descriptors.
 #![no_std]
 
+/// Access to the "poll" system call.
+pub mod poll;
+
 /// An encapsulated Linux file descriptor.
 ///
 /// The methods of `File` are largely just thin wrappers around Linux system
@@ -29,8 +32,9 @@
 ///
 /// When the `std` crate feature is enabled, a `File` also implements the
 /// `std:io` traits `Read`, `Write`, and `Seek`.
+#[repr(transparent)]
 pub struct File {
-    fd: linux_unsafe::int,
+    pub(crate) fd: linux_unsafe::int,
 }
 
 use linux_unsafe::raw::V;
