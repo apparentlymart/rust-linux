@@ -8,6 +8,12 @@ pub type int = ffi::c_int;
 /// The primary unsigned integer type for the current platform.
 pub type uint = ffi::c_uint;
 
+/// The short signed integer type for the current platform.
+pub type short = ffi::c_short;
+
+/// The short unsigned integer type for the current platform.
+pub type ushort = ffi::c_ushort;
+
 /// The signed long integer type for the current platform.
 pub type long = ffi::c_long;
 
@@ -75,6 +81,24 @@ pub const O_PATH: int = 0o010000000;
 pub const O_TMPFILE: int = 0o020000000 | O_DIRECTORY;
 pub const O_TMPFILE_MASK: int = 0o020000000 | O_DIRECTORY | O_CREAT;
 pub const O_NDELAY: int = O_NONBLOCK;
+
+/// A file descriptor request object for use with [`crate::poll`].
+#[repr(C)]
+pub struct pollfd {
+    fd: int,
+    events: short,
+    revents: short,
+}
+
+// The type used to specify the number of file descriptors when calling [`crate::poll`].
+pub type nfds_t = uint;
+
+pub const POLLIN: short = 0x0001;
+pub const POLLPRI: short = 0x0002;
+pub const POLLOUT: short = 0x0004;
+pub const POLLERR: short = 0x0008;
+pub const POLLHUP: short = 0x0010;
+pub const POLLNVAL: short = 0x0020;
 
 // Also include architecture-specific types.
 pub use crate::raw::types::*;

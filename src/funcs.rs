@@ -55,6 +55,13 @@ pub unsafe fn open(pathname: *const char, flags: int, mode: mode_t) -> int {
     ) as int
 }
 
+/// Wait for events on one or more file descriptors.
+#[cfg(have_syscall = "poll")]
+#[inline(always)]
+pub unsafe fn poll(fds: *mut pollfd, nfds: nfds_t, timeout: int) -> int {
+    raw::syscall3(raw::POLL, fds as raw::V, nfds as raw::V, timeout as raw::V) as int
+}
+
 /// Read from a file descriptor.
 #[cfg(have_syscall = "read")]
 #[inline(always)]
