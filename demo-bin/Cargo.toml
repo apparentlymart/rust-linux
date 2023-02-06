@@ -1,0 +1,14 @@
+[package]
+name = "rust-linux-safe-demo"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+linux-io = { path = "../linux-io", default-features = false }
+linux-unsafe = { version = "0.3.0" }
+
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+panic = "abort"
