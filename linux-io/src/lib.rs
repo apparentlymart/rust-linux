@@ -120,13 +120,26 @@ impl File {
 
     /// Read some bytes from the file into the given buffer, returning the
     /// number of bytes that were read.
-    #[inline]
+    #[inline(always)]
     pub fn read(&mut self, buf: &mut [u8]) -> Result<usize> {
         let buf_ptr = buf.as_mut_ptr() as *mut linux_unsafe::void;
         let buf_size = buf.len();
-        let result = unsafe { linux_unsafe::read(self.fd, buf_ptr, buf_size) };
+        unsafe { self.read_raw(buf_ptr, buf_size) }.map(|v| v as _)
+    }
+
+    /// A thin wrapper around the raw `read` system call against this file's
+    /// file descriptor.
+    ///
+    /// Use [`File::read`] as a safe alternative.
+    #[inline]
+    pub unsafe fn read_raw(
+        &mut self,
+        buf: *mut linux_unsafe::void,
+        count: linux_unsafe::size_t,
+    ) -> Result<linux_unsafe::size_t> {
+        let result = unsafe { linux_unsafe::read(self.fd, buf, count) };
         linux_unsafe::raw::unpack_standard_result(result as V)
-            .map(|v| v as usize)
+            .map(|v| v as _)
             .map_err(|e| e.into())
     }
 
@@ -182,13 +195,26 @@ impl File {
 
     /// Write bytes from the given buffer to the file, returning how many bytes
     /// were written.
-    #[inline]
+    #[inline(always)]
     pub fn write(&mut self, buf: &[u8]) -> Result<usize> {
         let buf_ptr = buf.as_ptr() as *const linux_unsafe::void;
         let buf_size = buf.len();
-        let result = unsafe { linux_unsafe::write(self.fd, buf_ptr, buf_size) };
+        unsafe { self.write_raw(buf_ptr, buf_size) }.map(|v| v as _)
+    }
+
+    /// A thin wrapper around the raw `write` system call against this file's
+    /// file descriptor.
+    ///
+    /// Use [`File::write`] as a safe alternative.
+    #[inline]
+    pub unsafe fn write_raw(
+        &mut self,
+        buf: *const linux_unsafe::void,
+        count: linux_unsafe::size_t,
+    ) -> Result<linux_unsafe::size_t> {
+        let result = unsafe { linux_unsafe::write(self.fd, buf, count) };
         linux_unsafe::raw::unpack_standard_result(result as V)
-            .map(|v| v as usize)
+            .map(|v| v as _)
             .map_err(|e| e.into())
     }
 }
