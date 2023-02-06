@@ -1,20 +1,60 @@
 use core::ffi;
 
 use super::raw;
+use super::result::{prepare_arg as arg, prepare_standard_result as mkresult, Result};
 use super::types::*;
+
+macro_rules! syscall {
+    ($n:expr) => {
+        mkresult(raw::syscall0($n))
+    };
+    ($n:expr, $a0:expr) => {
+        mkresult(raw::syscall1($n, arg($a0)))
+    };
+    ($n:expr, $a0:expr, $a1:expr) => {
+        mkresult(raw::syscall2($n, arg($a0), arg($a1)))
+    };
+    ($n:expr, $a0:expr, $a1:expr, $a2:expr) => {
+        mkresult(raw::syscall3($n, arg($a0), arg($a1), arg($a2)))
+    };
+    ($n:expr, $a0:expr, $a1:expr, $a2:expr, $a3:expr) => {
+        mkresult(raw::syscall4($n, arg($a0), arg($a1), arg($a2), arg($a3)))
+    };
+    ($n:expr, $a0:expr, $a1:expr, $a2:expr, $a3:expr, $a4:expr) => {
+        mkresult(raw::syscall5(
+            $n,
+            arg($a0),
+            arg($a1),
+            arg($a2),
+            arg($a3),
+            arg($a4),
+        ))
+    };
+    ($n:expr, $a0:expr, $a1:expr, $a2:expr, $a3:expr, $a4:expr, $a5:expr) => {
+        mkresult(raw::syscall6(
+            $n,
+            arg($a0),
+            arg($a1),
+            arg($a2),
+            arg($a3),
+            arg($a4),
+            arg($a5),
+        ))
+    };
+}
 
 /// Close a file.
 #[cfg(have_syscall = "close")]
 #[inline(always)]
-pub unsafe fn close(fd: int) -> int {
-    raw::syscall1(raw::CLOSE, fd as raw::V) as int
+pub unsafe fn close(fd: int) -> Result<int> {
+    syscall!(raw::CLOSE, fd)
 }
 
 /// Create a file.
 #[cfg(have_syscall = "creat")]
 #[inline(always)]
-pub unsafe fn creat(pathname: *const char, mode: mode_t) -> int {
-    raw::syscall2(raw::CREAT, pathname as raw::V, mode as raw::V) as int
+pub unsafe fn creat(pathname: *const char, mode: mode_t) -> Result<int> {
+    syscall!(raw::CREAT, pathname, mode)
 }
 
 /// Immediately terminate the current thread, without giving Rust or libc
@@ -22,7 +62,7 @@ pub unsafe fn creat(pathname: *const char, mode: mode_t) -> int {
 #[cfg(have_syscall = "exit")]
 #[inline(always)]
 pub unsafe fn exit(status: int) -> ! {
-    raw::syscall1(raw::EXIT, status as raw::V);
+    raw::syscall1(raw::EXIT, arg(status));
     unreachable!()
 }
 
@@ -32,7 +72,7 @@ pub unsafe fn exit(status: int) -> ! {
 #[cfg(have_syscall = "exit_group")]
 #[inline(always)]
 pub unsafe fn exit_group(status: int) -> ! {
-    raw::syscall1(raw::EXIT_GROUP, status as raw::V);
+    raw::syscall1(raw::EXIT_GROUP, arg(status));
     unreachable!()
 }
 
@@ -46,34 +86,29 @@ pub unsafe fn getpid() -> pid_t {
 /// Open a file.
 #[cfg(have_syscall = "open")]
 #[inline(always)]
-pub unsafe fn open(pathname: *const char, flags: int, mode: mode_t) -> int {
-    raw::syscall3(
-        raw::OPEN,
-        pathname as raw::V,
-        flags as raw::V,
-        mode as raw::V,
-    ) as int
+pub unsafe fn open(pathname: *const char, flags: int, mode: mode_t) -> Result<int> {
+    syscall!(raw::OPEN, pathname, flags, mode)
 }
 
 /// Wait for events on one or more file descriptors.
 #[cfg(have_syscall = "poll")]
 #[inline(always)]
-pub unsafe fn poll(fds: *mut pollfd, nfds: nfds_t, timeout: int) -> int {
-    raw::syscall3(raw::POLL, fds as raw::V, nfds as raw::V, timeout as raw::V) as int
+pub unsafe fn poll(fds: *mut pollfd, nfds: nfds_t, timeout: int) -> Result<int> {
+    syscall!(raw::POLL, fds, nfds, timeout)
 }
 
 /// Read from a file descriptor.
 #[cfg(have_syscall = "read")]
 #[inline(always)]
-pub unsafe fn read(fd: int, buf: *mut void, count: size_t) -> ssize_t {
-    raw::syscall3(raw::READ, fd as raw::V, buf as raw::V, count as raw::V) as ssize_t
+pub unsafe fn read(fd: int, buf: *mut void, count: size_t) -> Result<ssize_t> {
+    syscall!(raw::READ, fd, buf, count)
 }
 
 /// Read from a file descriptor into multiple buffers.
 #[cfg(have_syscall = "readv")]
 #[inline(always)]
-pub unsafe fn readv(fd: int, iov: *mut iovec, iovcount: int) -> size_t {
-    raw::syscall3(raw::READV, fd as raw::V, iov as raw::V, iovcount as raw::V) as size_t
+pub unsafe fn readv(fd: int, iov: *mut iovec, iovcount: int) -> Result<size_t> {
+    syscall!(raw::READV, fd, iov, iovcount)
 }
 
 /// Commit all filesystem caches to disk.
@@ -86,29 +121,29 @@ pub unsafe fn sync() {
 /// Commit filesystem caches to disk for the filesystem containing a particular file.
 #[cfg(have_syscall = "syncfs")]
 #[inline(always)]
-pub unsafe fn syncfs(fd: int) -> int {
-    raw::syscall1(raw::SYNCFS, fd as raw::V) as int
+pub unsafe fn syncfs(fd: int) -> Result<int> {
+    syscall!(raw::SYNCFS, fd)
 }
 
 /// Reposition the read/write offset for a file.
 #[cfg(have_syscall = "lseek")]
 #[inline(always)]
-pub unsafe fn lseek(fd: int, offset: off_t, whence: int) -> off_t {
-    raw::syscall3(raw::LSEEK, fd as raw::V, offset as raw::V, whence as raw::V) as off_t
+pub unsafe fn lseek(fd: int, offset: off_t, whence: int) -> Result<off_t> {
+    syscall!(raw::LSEEK, fd, offset, whence)
 }
 
 /// Write to a file descriptor.
 #[cfg(have_syscall = "write")]
 #[inline(always)]
-pub unsafe fn write(fd: int, buf: *const ffi::c_void, count: size_t) -> ssize_t {
-    raw::syscall3(raw::WRITE, fd as raw::V, buf as raw::V, count as raw::V) as ssize_t
+pub unsafe fn write(fd: int, buf: *const ffi::c_void, count: size_t) -> Result<ssize_t> {
+    syscall!(raw::WRITE, fd, buf, count)
 }
 
 /// Write to a file descriptor from multiple buffers.
 #[cfg(have_syscall = "writev")]
 #[inline(always)]
-pub unsafe fn writev(fd: int, iov: *const iovec, iovcount: int) -> size_t {
-    raw::syscall3(raw::WRITEV, fd as raw::V, iov as raw::V, iovcount as raw::V) as size_t
+pub unsafe fn writev(fd: int, iov: *const iovec, iovcount: int) -> Result<size_t> {
+    syscall!(raw::WRITEV, fd, iov, iovcount)
 }
 
 /// A special variant of [`lseek`] for 32-bit platforms that need the 64-bit
@@ -124,13 +159,6 @@ pub unsafe fn _llseek(
     offset_low: ffi::c_ulong,
     result: *mut loff_t,
     whence: uint,
-) -> int {
-    raw::syscall5(
-        raw::_LLSEEK,
-        fd as raw::V,
-        offset_high as raw::V,
-        offset_low as raw::V,
-        result as raw::V,
-        whence as raw::V,
-    ) as int
+) -> Result<int> {
+    syscall!(raw::_LLSEEK, fd, offset_high, offset_low, result, whence)
 }
