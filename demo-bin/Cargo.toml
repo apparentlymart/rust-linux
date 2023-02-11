@@ -5,7 +5,7 @@ version = "0.1.0"
 
 [dependencies]
 linux-io = {path = "../linux-io", default-features = false}
-linux-unsafe = {version = "0.3.0"}
+linux-unsafe = {path = "../linux-unsafe"}
 
 [profile.dev]
 panic = "abort"
