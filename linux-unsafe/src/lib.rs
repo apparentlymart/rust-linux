@@ -52,6 +52,8 @@ pub use funcs::*;
 pub use types::*;
 pub mod result;
 
+pub mod args;
+
 #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
 #[path = "raw/x86_64.rs"]
 pub mod raw;

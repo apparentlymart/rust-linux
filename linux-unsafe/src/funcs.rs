@@ -80,7 +80,7 @@ pub unsafe fn acct(filename: *const char) -> Result<int> {
 #[cfg(have_syscall = "alarm")]
 #[inline(always)]
 pub unsafe fn alarm(seconds: uint) -> uint {
-    use crate::result::AsRawV;
+    use crate::args::AsRawV;
     uint::from_raw_result(raw::syscall1(raw::ALARM, arg(seconds)))
 }
 
@@ -95,7 +95,7 @@ pub unsafe fn bind(sockfd: int, addr: *const sockaddr, addrlen: socklen_t) -> Re
 #[cfg(have_syscall = "brk")]
 #[inline(always)]
 pub unsafe fn brk(brk: ulong) -> long {
-    use crate::result::AsRawV;
+    use crate::args::AsRawV;
     long::from_raw_result(raw::syscall1(raw::BRK, arg(brk)))
 }
 
@@ -277,6 +277,25 @@ pub unsafe fn fchownat(
     syscall!(raw::FCHOWN, dirfd, pathname, owner, group)
 }
 
+/// Manipulate characteristics of a file descriptor.
+///
+/// This system call is _particularly_ unsafe, because the final argument
+/// gets interpreted in very different ways depending on the value of
+/// the `cmd` argument. Callers must take care to ensure that `arg` is of
+/// an appropriate type and value for the selected `cmd`.
+///
+/// Set `arg` to `()` (empty tuple) for commands whose argument is specified
+/// as "void" in the documentation.
+#[cfg(have_syscall = "fcntl")]
+#[inline(always)]
+pub unsafe fn fcntl(fd: int, cmd: int, arg: impl crate::args::AsRawV) -> Result<int> {
+    if arg.raw_is_void() {
+        syscall!(raw::FCNTL, fd, cmd)
+    } else {
+        syscall!(raw::FCNTL, fd, cmd, arg)
+    }
+}
+
 /// Synchronize a file's in-core state with storage device.
 #[cfg(have_syscall = "fdatasync")]
 #[inline(always)]
@@ -296,6 +315,25 @@ pub unsafe fn fsync(fd: int) -> Result<int> {
 #[inline(always)]
 pub unsafe fn ftruncate(fd: int, length: off_t) -> Result<int> {
     syscall!(raw::FTRUNCATE, fd, length)
+}
+
+/// Arbitrary requests for file descriptors representing devices.
+///
+/// This system call is _particularly_ unsafe, because the final argument
+/// gets interpreted in very different ways depending on the value of
+/// the `request` argument. Callers must take care to ensure that `request` is
+/// of an appropriate type and value for the selected `request`.
+///
+/// Set `arg` to `()` (empty tuple) for requests whose argument is specified
+/// as "void" in the documentation.
+#[cfg(have_syscall = "ioctl")]
+#[inline(always)]
+pub unsafe fn ioctl(fd: int, request: ulong, arg: impl crate::args::AsRawV) -> Result<int> {
+    if arg.raw_is_void() {
+        syscall!(raw::IOCTL, fd, request)
+    } else {
+        syscall!(raw::IOCTL, fd, request, arg)
+    }
 }
 
 /// Determine CPU and NUMA node on which the calling thread is running.
