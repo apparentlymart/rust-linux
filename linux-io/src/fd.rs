@@ -18,34 +18,6 @@ pub struct File {
 }
 
 impl File {
-    /// Wrap an existing raw file descriptor into a [`File`].
-    ///
-    /// Safety:
-    /// - The given file descriptor must not belong to an active standard
-    ///   library file or any similar wrapping abstraction.
-    /// - The file descriptor must remain open and valid for the full lifetime
-    ///   of the `File` object.
-    /// - The same file descriptor must not be wrapped in instances of
-    ///   `File`, because the first one to be dropped will close the file
-    ///   descriptor.
-    #[inline]
-    pub unsafe fn from_raw_fd(fd: linux_unsafe::int) -> Self {
-        File { fd }
-    }
-
-    /// Create a new file using the `creat` system call.
-    ///
-    /// This function exposes the raw `mode` argument from the underlying
-    /// system call, which the caller must populate appropriately.
-    #[inline]
-    pub fn create_raw(path: &CStr, mode: linux_unsafe::mode_t) -> Result<Self> {
-        let path_raw = path.as_ptr() as *const linux_unsafe::char;
-        let result = unsafe { linux_unsafe::creat(path_raw, mode as linux_unsafe::mode_t) };
-        result
-            .map(|fd| unsafe { Self::from_raw_fd(fd as linux_unsafe::int) })
-            .map_err(|e| e.into())
-    }
-
     /// Open an existing file.
     ///
     /// Use this function for `OpenOptions` that don't require a mode. If you
@@ -90,6 +62,34 @@ impl File {
         result
             .map(|fd| unsafe { Self::from_raw_fd(fd as linux_unsafe::int) })
             .map_err(|e| e.into())
+    }
+
+    /// Create a new file using the `creat` system call.
+    ///
+    /// This function exposes the raw `mode` argument from the underlying
+    /// system call, which the caller must populate appropriately.
+    #[inline]
+    pub fn create_raw(path: &CStr, mode: linux_unsafe::mode_t) -> Result<Self> {
+        let path_raw = path.as_ptr() as *const linux_unsafe::char;
+        let result = unsafe { linux_unsafe::creat(path_raw, mode as linux_unsafe::mode_t) };
+        result
+            .map(|fd| unsafe { Self::from_raw_fd(fd as linux_unsafe::int) })
+            .map_err(|e| e.into())
+    }
+
+    /// Wrap an existing raw file descriptor into a [`File`].
+    ///
+    /// Safety:
+    /// - The given file descriptor must not belong to an active standard
+    ///   library file or any similar wrapping abstraction.
+    /// - The file descriptor must remain open and valid for the full lifetime
+    ///   of the `File` object.
+    /// - The same file descriptor must not be wrapped in instances of
+    ///   `File`, because the first one to be dropped will close the file
+    ///   descriptor.
+    #[inline]
+    pub unsafe fn from_raw_fd(fd: linux_unsafe::int) -> Self {
+        File { fd }
     }
 
     /// Creates a new file descriptor referring to the same underlying file
@@ -339,7 +339,11 @@ pub const OPEN_READ_WRITE: OpenOptions<OpenWithoutMode> =
     OpenOptions::<OpenWithoutMode>::read_write();
 
 /// Encapsulates the various options for the `open` system call behind a
-/// factory API.
+/// builder API.
+///
+/// Use [`OPEN_READ_ONLY`], [`OPEN_WRITE_ONLY`], or [`OPEN_READ_WRITE`] as
+/// a starting value of this type and then refine as necessary using the
+/// methods to set additional flags.
 #[derive(Clone, Copy, PartialEq, Eq)]
 #[repr(transparent)]
 pub struct OpenOptions<NeedMode: OpenMode> {
@@ -456,6 +460,20 @@ impl<NeedMode: OpenMode> OpenOptions<NeedMode> {
     #[inline(always)]
     pub const fn truncate(self) -> Self {
         self.bit_or(linux_unsafe::O_TRUNC)
+    }
+
+    /// Convert the options wrapper into the corresponding raw flags value
+    /// to use with the `open` system call.
+    #[inline(always)]
+    pub const fn into_raw_flags(self) -> linux_unsafe::int {
+        self.flags
+    }
+}
+
+impl<NeedMode: OpenMode> Into<linux_unsafe::int> for OpenOptions<NeedMode> {
+    #[inline(always)]
+    fn into(self) -> linux_unsafe::int {
+        self.into_raw_flags()
     }
 }
 

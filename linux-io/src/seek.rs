@@ -1,6 +1,9 @@
 #[cfg(feature = "std")]
 extern crate std;
 
+#[allow(unused_imports)] // this is only for doc comments
+use crate::File;
+
 /// Used with [`File::seek`] to specify the starting point and offset.
 ///
 /// This is just a copy of `std::io::SeekFrom`, included here to allow this

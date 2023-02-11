@@ -29,9 +29,9 @@ pub mod result;
 /// Types for use with "seek" operations.
 pub mod seek;
 
-/// The main `File` type and its supporting utilities.
-pub mod file;
-pub use file::{File, OpenOptions, OPEN_READ_ONLY, OPEN_READ_WRITE, OPEN_WRITE_ONLY};
+/// The main `File` type and its supporting utilities for working safely with file descriptors.
+pub mod fd;
+pub use fd::{File, OpenOptions, OPEN_READ_ONLY, OPEN_READ_WRITE, OPEN_WRITE_ONLY};
 
 #[cfg(test)]
 mod tests;
