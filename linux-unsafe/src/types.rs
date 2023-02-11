@@ -129,10 +129,10 @@ pub struct epoll_event {
 /// A type used with [`crate::epoll_ctl`].
 #[repr(C)]
 pub union epoll_data {
-    ptr: *mut void,
-    fd: int,
-    u32: u32,
-    u64: u64,
+    pub ptr: *mut void,
+    pub fd: int,
+    pub u32: u32,
+    pub u64: u64,
 }
 
 // Also include architecture-specific types.
