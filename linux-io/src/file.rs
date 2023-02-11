@@ -67,6 +67,20 @@ impl File {
             .map_err(|e| e.into())
     }
 
+    /// Creates a new file descriptor referring to the same underlying file
+    /// description as `self`.
+    ///
+    /// Note that the read/write position of a file is a property of its file
+    /// description rather than its descriptor, and so modifying the position
+    /// (and some other aspects) of the new file will also affect the original.
+    #[inline]
+    pub fn duplicate(&self) -> Result<Self> {
+        let result = unsafe { linux_unsafe::dup(self.fd) };
+        result
+            .map(|fd| unsafe { Self::from_raw_fd(fd) })
+            .map_err(|e| e.into())
+    }
+
     /// Consumes the file object and returns the underlying file descriptor
     /// without closing it.
     #[inline(always)]
