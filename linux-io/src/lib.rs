@@ -37,8 +37,6 @@ pub struct File {
     pub(crate) fd: linux_unsafe::int,
 }
 
-use linux_unsafe::raw::V;
-
 impl File {
     /// Wrap an existing raw file descriptor into a [`File`].
     ///
@@ -63,7 +61,7 @@ impl File {
     pub fn create_raw(path: &[u8], mode: linux_unsafe::mode_t) -> Result<Self> {
         let path_raw = path.as_ptr() as *const linux_unsafe::char;
         let result = unsafe { linux_unsafe::creat(path_raw, mode as linux_unsafe::mode_t) };
-        linux_unsafe::raw::unpack_standard_result(result as V)
+        result
             .map(|fd| unsafe { Self::from_raw_fd(fd as linux_unsafe::int) })
             .map_err(|e| e.into())
     }
@@ -86,7 +84,7 @@ impl File {
                 mode as linux_unsafe::mode_t,
             )
         };
-        linux_unsafe::raw::unpack_standard_result(result as V)
+        result
             .map(|fd| unsafe { Self::from_raw_fd(fd as linux_unsafe::int) })
             .map_err(|e| e.into())
     }
@@ -126,9 +124,7 @@ impl File {
     #[inline(always)]
     pub unsafe fn close_mut(&mut self) -> Result<()> {
         let result = unsafe { linux_unsafe::close(self.fd) };
-        linux_unsafe::raw::unpack_standard_result(result as V)
-            .map(|_| ())
-            .map_err(|e| e.into())
+        result.map(|_| ()).map_err(|e| e.into())
     }
 
     /// Read some bytes from the file into the given buffer, returning the
@@ -151,9 +147,7 @@ impl File {
         count: linux_unsafe::size_t,
     ) -> Result<linux_unsafe::size_t> {
         let result = unsafe { linux_unsafe::read(self.fd, buf, count) };
-        linux_unsafe::raw::unpack_standard_result(result as V)
-            .map(|v| v as _)
-            .map_err(|e| e.into())
+        result.map(|v| v as _).map_err(|e| e.into())
     }
 
     /// Change the current read/write position of the file.
@@ -168,9 +162,7 @@ impl File {
             // bit enough for all offsets.
             let raw_whence = pos.for_raw_whence();
             let result = unsafe { linux_unsafe::lseek(self.fd, raw_offs, raw_whence) };
-            linux_unsafe::raw::unpack_standard_result(result as V)
-                .map(|v| v as u64)
-                .map_err(|e| e.into())
+            result.map(|v| v as u64).map_err(|e| e.into())
         }
 
         #[cfg(target_pointer_width = "32")]
@@ -183,10 +175,10 @@ impl File {
             let result: UnsafeCell<linux_unsafe::loff_t> = UnsafeCell::new(0);
             let result_ptr = result.get();
             let raw_whence = pos.for_raw_uwhence();
-            let status = unsafe {
+            let result = unsafe {
                 linux_unsafe::_llseek(self.fd, raw_offs_high, raw_offs_low, result_ptr, raw_whence)
             };
-            match linux_unsafe::raw::unpack_standard_result(status as V) {
+            match result {
                 Ok(_) => {
                     let result_offs = unsafe { *result_ptr } as u64;
                     Ok(result_offs)
@@ -201,9 +193,7 @@ impl File {
     #[inline]
     pub fn sync(&mut self) -> Result<()> {
         let result = unsafe { linux_unsafe::syncfs(self.fd) };
-        linux_unsafe::raw::unpack_standard_result(result as V)
-            .map(|_| ())
-            .map_err(|e| e.into())
+        result.map(|_| ()).map_err(|e| e.into())
     }
 
     /// Write bytes from the given buffer to the file, returning how many bytes
@@ -226,9 +216,7 @@ impl File {
         count: linux_unsafe::size_t,
     ) -> Result<linux_unsafe::size_t> {
         let result = unsafe { linux_unsafe::write(self.fd, buf, count) };
-        linux_unsafe::raw::unpack_standard_result(result as V)
-            .map(|v| v as _)
-            .map_err(|e| e.into())
+        result.map(|v| v as _).map_err(|e| e.into())
     }
 }
 
@@ -333,6 +321,13 @@ impl From<i32> for Error {
     #[inline(always)]
     fn from(value: i32) -> Self {
         Self::new(value)
+    }
+}
+
+impl From<linux_unsafe::result::Error> for Error {
+    #[inline(always)]
+    fn from(value: linux_unsafe::result::Error) -> Self {
+        Self::new(value.0)
     }
 }
 

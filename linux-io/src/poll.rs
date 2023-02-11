@@ -160,7 +160,5 @@ pub fn poll(
     }
     let reqs_count = reqs.len() as linux_unsafe::nfds_t;
     let result = unsafe { linux_unsafe::poll(reqs_ptr, reqs_count, timeout) };
-    linux_unsafe::raw::unpack_standard_result(result as crate::V)
-        .map(|count| count as _)
-        .map_err(|e| e.into())
+    result.map(|count| count as _).map_err(|e| e.into())
 }
