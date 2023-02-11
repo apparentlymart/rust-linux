@@ -7,7 +7,7 @@ license = "MIT"
 repository = "https://github.com/apparentlymart/rust-linux-safe"
 
 [dependencies]
-linux-unsafe = "0.3.0"
+linux-unsafe = { path = "../linux-unsafe" }
 
 [dev-dependencies]
 tempfile = "3.3.0"

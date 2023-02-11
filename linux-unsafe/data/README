@@ -1,0 +1,4 @@
+The syscall.h files under the architecture-specific subdirectories are
+derived from the system call number tables in the musl libc codebase.
+They are consumed by the crate's build script to produce the "raw" module's
+constants representing the system call numbers for the target architecture.
