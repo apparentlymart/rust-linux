@@ -44,6 +44,29 @@ impl File {
             .map_err(|e| e.into())
     }
 
+    /// Open an existing file.
+    ///
+    /// Use this function for `OpenOptions` that don't require a mode. If you
+    /// set the "create" option then you will need to use
+    /// [`Self::open_with_mode`] instead, to specify the mode of the new file.
+    #[inline(always)]
+    pub fn open(path: &[u8], options: OpenOptions<OpenWithoutMode>) -> Result<Self> {
+        Self::open_raw(path, options.flags, 0)
+    }
+
+    /// Open a file, creating it if necessary using the given file mode.
+    ///
+    /// Use this function only for `OpenOptions` that require a mode. For
+    /// most options you can use [`Self::open`] instead.
+    #[inline(always)]
+    pub fn open_with_mode(
+        path: &[u8],
+        options: OpenOptions<OpenWithMode>,
+        mode: linux_unsafe::mode_t,
+    ) -> Result<Self> {
+        Self::open_raw(path, options.flags, mode)
+    }
+
     /// Open a file using the `open` system call.
     ///
     /// This function exposes the raw `flags` and `mode` arguments from the
@@ -294,3 +317,157 @@ impl std::os::fd::IntoRawFd for File {
         self.into_raw_fd() as std::os::fd::RawFd
     }
 }
+
+/// Use with [`File::open`] to open a file only for reading.
+///
+/// Use the methods of this type to add additional options for `open`.
+pub const OPEN_READ_ONLY: OpenOptions<OpenWithoutMode> =
+    OpenOptions::<OpenWithoutMode>::read_only();
+
+/// Use with [`File::open`] to open a file only for writing.
+///
+/// Use the methods of this type to add additional options for `open`.
+pub const OPEN_WRITE_ONLY: OpenOptions<OpenWithoutMode> =
+    OpenOptions::<OpenWithoutMode>::write_only();
+
+/// Use with [`File::open`] to open a file for both reading and writing.
+///
+/// Use the methods of this type to add additional options for `open`.
+pub const OPEN_READ_WRITE: OpenOptions<OpenWithoutMode> =
+    OpenOptions::<OpenWithoutMode>::read_write();
+
+/// Encapsulates the various options for the `open` system call behind a
+/// factory API.
+#[derive(Clone, Copy, PartialEq, Eq)]
+#[repr(transparent)]
+pub struct OpenOptions<NeedMode: OpenMode> {
+    flags: linux_unsafe::int,
+    _phantom: core::marker::PhantomData<NeedMode>,
+}
+
+impl OpenOptions<OpenWithoutMode> {
+    #[inline(always)]
+    pub const fn read_only() -> Self {
+        Self {
+            flags: linux_unsafe::O_RDONLY, // NOTE: This is really just zero
+            _phantom: core::marker::PhantomData,
+        }
+    }
+
+    #[inline(always)]
+    pub const fn write_only() -> Self {
+        Self {
+            flags: linux_unsafe::O_WRONLY,
+            _phantom: core::marker::PhantomData,
+        }
+    }
+
+    #[inline(always)]
+    pub const fn read_write() -> Self {
+        Self {
+            flags: linux_unsafe::O_RDWR,
+            _phantom: core::marker::PhantomData,
+        }
+    }
+}
+
+impl<NeedMode: OpenMode> OpenOptions<NeedMode> {
+    #[inline(always)]
+    const fn bit_or(self, new: linux_unsafe::int) -> Self {
+        Self {
+            flags: self.flags | new,
+            _phantom: core::marker::PhantomData,
+        }
+    }
+
+    #[inline(always)]
+    pub const fn append(self) -> Self {
+        self.bit_or(linux_unsafe::O_APPEND)
+    }
+
+    #[inline(always)]
+    pub const fn close_on_exec(self) -> Self {
+        self.bit_or(linux_unsafe::O_CLOEXEC)
+    }
+
+    #[inline(always)]
+    pub const fn create(self) -> OpenOptions<OpenWithMode> {
+        OpenOptions {
+            flags: self.bit_or(linux_unsafe::O_CREAT).flags,
+            _phantom: core::marker::PhantomData,
+        }
+    }
+
+    #[inline(always)]
+    pub const fn direct(self) -> Self {
+        self.bit_or(linux_unsafe::O_DIRECT)
+    }
+
+    #[inline(always)]
+    pub const fn directory(self) -> Self {
+        self.bit_or(linux_unsafe::O_DIRECTORY)
+    }
+
+    #[inline(always)]
+    pub const fn excl(self) -> Self {
+        self.bit_or(linux_unsafe::O_EXCL)
+    }
+
+    #[inline(always)]
+    pub const fn no_atime(self) -> Self {
+        self.bit_or(linux_unsafe::O_NOATIME)
+    }
+
+    #[inline(always)]
+    pub const fn no_controlling_tty(self) -> Self {
+        self.bit_or(linux_unsafe::O_NOCTTY)
+    }
+
+    #[inline(always)]
+    pub const fn no_follow_symlinks(self) -> Self {
+        self.bit_or(linux_unsafe::O_NOFOLLOW)
+    }
+
+    #[inline(always)]
+    pub const fn nonblocking(self) -> Self {
+        self.bit_or(linux_unsafe::O_NONBLOCK)
+    }
+
+    #[inline(always)]
+    pub const fn path_only(self) -> Self {
+        self.bit_or(linux_unsafe::O_PATH)
+    }
+
+    #[inline(always)]
+    pub const fn sync(self) -> Self {
+        self.bit_or(linux_unsafe::O_SYNC)
+    }
+
+    #[inline(always)]
+    pub const fn temp_file(self) -> OpenOptions<OpenWithMode> {
+        OpenOptions {
+            flags: self.bit_or(linux_unsafe::O_TMPFILE).flags,
+            _phantom: core::marker::PhantomData,
+        }
+    }
+
+    #[inline(always)]
+    pub const fn truncate(self) -> Self {
+        self.bit_or(linux_unsafe::O_TRUNC)
+    }
+}
+
+/// A marker type used with [`OpenOptions`] to represent situations where
+/// opening the file would require a `mode` argument.
+pub enum OpenWithMode {}
+
+/// A marker type used with [`OpenOptions`] to represent situations where
+/// opening the file would require a `mode` argument.
+pub enum OpenWithoutMode {}
+
+/// A marker trait used with [`OpenOptions`] to represent whether a particular
+/// set of options must be opened with an additional `mode` argument.
+pub trait OpenMode {}
+
+impl OpenMode for OpenWithMode {}
+impl OpenMode for OpenWithoutMode {}
