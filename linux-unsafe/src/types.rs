@@ -44,6 +44,18 @@ pub type loff_t = ffi::c_longlong;
 /// The type used for process identifiers (PIDs) on the current platform.
 pub type pid_t = int;
 
+/// The type used for representing the length of a socket address.
+pub type sockaddr = void;
+
+/// The type used for representing the length of a socket address.
+pub type socklen_t = int;
+
+/// The type used to represent user ids.
+pub type uid_t = uint;
+
+/// The type used to represent group ids.
+pub type gid_t = uint;
+
 /// Seek relative to the beginning of the file.
 pub const SEEK_SET: int = 0;
 
@@ -105,6 +117,22 @@ pub const POLLNVAL: short = 0x0020;
 pub struct iovec {
     pub iov_base: *mut void,
     pub iov_len: size_t,
+}
+
+/// A type used with [`crate::epoll_ctl`].
+#[repr(C)]
+pub struct epoll_event {
+    pub events: u32,
+    pub data: epoll_data,
+}
+
+/// A type used with [`crate::epoll_ctl`].
+#[repr(C)]
+pub union epoll_data {
+    ptr: *mut void,
+    fd: int,
+    u32: u32,
+    u64: u64,
 }
 
 // Also include architecture-specific types.

@@ -43,6 +43,90 @@ macro_rules! syscall {
     };
 }
 
+/// Accept a connection on a socket.
+#[cfg(have_syscall = "accept")]
+#[inline(always)]
+pub unsafe fn accept(sockfd: int, addr: *mut sockaddr, addrlen: *mut socklen_t) -> Result<int> {
+    syscall!(raw::ACCEPT, sockfd, addr, addrlen)
+}
+
+/// Accept a connection on a socket with additional flags.
+#[cfg(have_syscall = "accept4")]
+#[inline(always)]
+pub unsafe fn accept4(
+    sockfd: int,
+    addr: *mut sockaddr,
+    addrlen: *mut socklen_t,
+    flags: int,
+) -> Result<int> {
+    syscall!(raw::ACCEPT4, sockfd, addr, addrlen, flags)
+}
+
+/// Check user's permissions for a file.
+#[cfg(have_syscall = "access")]
+#[inline(always)]
+pub unsafe fn access(pathname: *const char, mode: int) -> Result<int> {
+    syscall!(raw::ACCESS, pathname, mode)
+}
+
+/// Switch process accounting on or off.
+#[cfg(have_syscall = "acct")]
+#[inline(always)]
+pub unsafe fn acct(filename: *const char) -> Result<int> {
+    syscall!(raw::ACCT, filename)
+}
+
+/// Set an alarm clock for delivery of a signal.
+#[cfg(have_syscall = "alarm")]
+#[inline(always)]
+pub unsafe fn alarm(seconds: uint) -> uint {
+    use crate::result::AsRawV;
+    uint::from_raw_result(raw::syscall1(raw::ALARM, arg(seconds)))
+}
+
+/// Bind a name to a socket.
+#[cfg(have_syscall = "bind")]
+#[inline(always)]
+pub unsafe fn bind(sockfd: int, addr: *const sockaddr, addrlen: socklen_t) -> Result<int> {
+    syscall!(raw::BIND, sockfd, addr, addrlen)
+}
+
+/// Set the program break.
+#[cfg(have_syscall = "brk")]
+#[inline(always)]
+pub unsafe fn brk(brk: ulong) -> long {
+    use crate::result::AsRawV;
+    long::from_raw_result(raw::syscall1(raw::BRK, arg(brk)))
+}
+
+/// Change working directory.
+#[cfg(have_syscall = "chdir")]
+#[inline(always)]
+pub unsafe fn chdir(path: *const char) -> Result<int> {
+    syscall!(raw::CHDIR, path)
+}
+
+/// Change permissions of a file.
+#[cfg(have_syscall = "chmod")]
+#[inline(always)]
+pub unsafe fn chmod(pathname: *const char, mode: mode_t) -> Result<int> {
+    syscall!(raw::CHMOD, pathname, mode)
+}
+
+/// Change ownership of a file.
+#[cfg(have_syscall = "chown")]
+#[inline(always)]
+pub unsafe fn chown(pathname: *const char, owner: uid_t, group: gid_t) -> Result<int> {
+    syscall!(raw::CHOWN, pathname, owner, group)
+}
+
+/// Change the root directory.
+#[cfg(have_syscall = "chroot")]
+#[inline(always)]
+pub unsafe fn chroot(path: *const char) -> Result<int> {
+    syscall!(raw::CHROOT, path)
+}
+
 /// Close a file.
 #[cfg(have_syscall = "close")]
 #[inline(always)]
@@ -50,11 +134,182 @@ pub unsafe fn close(fd: int) -> Result<int> {
     syscall!(raw::CLOSE, fd)
 }
 
+/// Close all file descriptors in a given range.
+#[cfg(have_syscall = "close_range")]
+#[inline(always)]
+pub unsafe fn close_range(first: int, last: int, flags: uint) -> Result<int> {
+    syscall!(raw::CLOSE_RANGE, first, last, flags)
+}
+
+/// Initiate a connection on a socket.
+#[cfg(have_syscall = "connect")]
+#[inline(always)]
+pub unsafe fn connect(sockfd: int, addr: *const sockaddr, addrlen: socklen_t) -> Result<int> {
+    syscall!(raw::CONNECT, sockfd, addr, addrlen)
+}
+
 /// Create a file.
 #[cfg(have_syscall = "creat")]
 #[inline(always)]
 pub unsafe fn creat(pathname: *const char, mode: mode_t) -> Result<int> {
     syscall!(raw::CREAT, pathname, mode)
+}
+
+/// Duplicate a file descriptor.
+#[cfg(have_syscall = "dup")]
+#[inline(always)]
+pub unsafe fn dup(oldfd: int) -> Result<int> {
+    syscall!(raw::DUP, oldfd)
+}
+
+/// Duplicate a file descriptor.
+#[cfg(have_syscall = "dup2")]
+#[inline(always)]
+pub unsafe fn dup2(oldfd: int, newfd: int) -> Result<int> {
+    syscall!(raw::DUP2, oldfd, newfd)
+}
+
+/// Duplicate a file descriptor.
+#[cfg(have_syscall = "dup3")]
+#[inline(always)]
+pub unsafe fn dup3(oldfd: int, newfd: int, flags: int) -> Result<int> {
+    syscall!(raw::DUP3, oldfd, newfd, flags)
+}
+
+/// Open an epoll file descriptor.
+#[cfg(have_syscall = "epoll_create")]
+#[inline(always)]
+pub unsafe fn epoll_create(size: int) -> Result<int> {
+    syscall!(raw::EPOLL_CREATE, size)
+}
+
+/// Open an epoll file descriptor.
+#[cfg(have_syscall = "epoll_create1")]
+#[inline(always)]
+pub unsafe fn epoll_create1(flags: int) -> Result<int> {
+    syscall!(raw::EPOLL_CREATE1, flags)
+}
+
+/// Control interface for an epoll file descriptor.
+#[cfg(have_syscall = "epoll_ctl")]
+#[inline(always)]
+pub unsafe fn epoll_ctl(epfd: int, op: int, fd: int, event: *const epoll_event) -> Result<int> {
+    syscall!(raw::EPOLL_CTL, epfd, op, fd, event)
+}
+
+/// Wait for an I/O event on an epoll file descriptor.
+#[cfg(have_syscall = "epoll_wait")]
+#[inline(always)]
+pub unsafe fn epoll_wait(
+    epfd: int,
+    events: *const epoll_event,
+    maxevents: int,
+    timeout: int,
+) -> Result<int> {
+    syscall!(raw::EPOLL_WAIT, epfd, events, maxevents, timeout)
+}
+
+/// Create a file descriptor for event notification.
+#[cfg(have_syscall = "eventfd")]
+#[inline(always)]
+pub unsafe fn eventfd(initval: uint) -> Result<int> {
+    syscall!(raw::EVENTFD, initval)
+}
+
+/// Create a file descriptor for event notification.
+#[cfg(have_syscall = "eventfd2")]
+#[inline(always)]
+pub unsafe fn eventfd2(initval: uint, flags: int) -> Result<int> {
+    syscall!(raw::EVENTFD2, initval, flags)
+}
+
+/// Check user's permissions for a file.
+#[cfg(have_syscall = "faccessat")]
+#[inline(always)]
+pub unsafe fn faccessat(dirfd: int, pathname: *const char, mode: int) -> Result<int> {
+    syscall!(raw::FACCESSAT, dirfd, pathname, mode)
+}
+
+/// Check user's permissions for a file.
+#[cfg(have_syscall = "faccessat2")]
+#[inline(always)]
+pub unsafe fn faccessat2(dirfd: int, pathname: *const char, mode: int, flags: int) -> Result<int> {
+    syscall!(raw::FACCESSAT2, dirfd, pathname, mode, flags)
+}
+
+/// Change working directory.
+#[cfg(have_syscall = "fchdir")]
+#[inline(always)]
+pub unsafe fn fchdir(fd: int) -> Result<int> {
+    syscall!(raw::FCHDIR, fd)
+}
+
+/// Change permissions of a file.
+#[cfg(have_syscall = "fchmod")]
+#[inline(always)]
+pub unsafe fn fchmod(fd: int, mode: mode_t) -> Result<int> {
+    syscall!(raw::FCHMOD, fd, mode)
+}
+
+/// Change permissions of a file.
+#[cfg(have_syscall = "fchmodat")]
+#[inline(always)]
+pub unsafe fn fchmodat(dirfd: int, pathname: *const char, mode: mode_t) -> Result<int> {
+    syscall!(raw::FCHMODAT, dirfd, pathname, mode)
+}
+
+/// Change ownership of a file.
+#[cfg(have_syscall = "fchown")]
+#[inline(always)]
+pub unsafe fn fchown(fd: int, owner: uid_t, group: gid_t) -> Result<int> {
+    syscall!(raw::FCHOWN, fd, owner, group)
+}
+
+/// Change ownership of a file.
+#[cfg(have_syscall = "fchownat")]
+#[inline(always)]
+pub unsafe fn fchownat(
+    dirfd: int,
+    pathname: *const char,
+    owner: uid_t,
+    group: gid_t,
+) -> Result<int> {
+    syscall!(raw::FCHOWN, dirfd, pathname, owner, group)
+}
+
+/// Synchronize a file's in-core state with storage device.
+#[cfg(have_syscall = "fdatasync")]
+#[inline(always)]
+pub unsafe fn fdatasync(fd: int) -> Result<int> {
+    syscall!(raw::FDATASYNC, fd)
+}
+
+/// Synchronize a file's in-core state with storage device.
+#[cfg(have_syscall = "fsync")]
+#[inline(always)]
+pub unsafe fn fsync(fd: int) -> Result<int> {
+    syscall!(raw::FSYNC, fd)
+}
+
+/// Truncate a file to a specified length.
+#[cfg(have_syscall = "ftruncate")]
+#[inline(always)]
+pub unsafe fn ftruncate(fd: int, length: off_t) -> Result<int> {
+    syscall!(raw::FTRUNCATE, fd, length)
+}
+
+/// Determine CPU and NUMA node on which the calling thread is running.
+#[cfg(have_syscall = "getcpu")]
+#[inline(always)]
+pub unsafe fn getcpu(cpu: *const uint, node: *const uint) -> Result<int> {
+    syscall!(raw::GETCPU, cpu, node)
+}
+
+/// Get current working directory.
+#[cfg(have_syscall = "getcwd")]
+#[inline(always)]
+pub unsafe fn getcwd(buf: *mut char, size: size_t) -> Result<*mut char> {
+    syscall!(raw::GETCWD, buf, size)
 }
 
 /// Immediately terminate the current thread, without giving Rust or libc
@@ -83,11 +338,32 @@ pub unsafe fn getpid() -> pid_t {
     raw::syscall0(raw::GETPID) as pid_t
 }
 
+/// Reposition the read/write offset for a file.
+#[cfg(have_syscall = "lseek")]
+#[inline(always)]
+pub unsafe fn lseek(fd: int, offset: off_t, whence: int) -> Result<off_t> {
+    syscall!(raw::LSEEK, fd, offset, whence)
+}
+
 /// Open a file.
 #[cfg(have_syscall = "open")]
 #[inline(always)]
 pub unsafe fn open(pathname: *const char, flags: int, mode: mode_t) -> Result<int> {
     syscall!(raw::OPEN, pathname, flags, mode)
+}
+
+/// Create pipe.
+#[cfg(have_syscall = "pipe")]
+#[inline(always)]
+pub unsafe fn pipe(fds: *mut int) -> Result<int> {
+    syscall!(raw::PIPE, fds)
+}
+
+/// Create pipe.
+#[cfg(have_syscall = "pipe2")]
+#[inline(always)]
+pub unsafe fn pipe2(fds: *mut int, flags: int) -> Result<int> {
+    syscall!(raw::PIPE2, fds, flags)
 }
 
 /// Wait for events on one or more file descriptors.
@@ -125,11 +401,11 @@ pub unsafe fn syncfs(fd: int) -> Result<int> {
     syscall!(raw::SYNCFS, fd)
 }
 
-/// Reposition the read/write offset for a file.
-#[cfg(have_syscall = "lseek")]
+/// Truncate a file to a specified length.
+#[cfg(have_syscall = "truncate")]
 #[inline(always)]
-pub unsafe fn lseek(fd: int, offset: off_t, whence: int) -> Result<off_t> {
-    syscall!(raw::LSEEK, fd, offset, whence)
+pub unsafe fn truncate(path: *const char, length: off_t) -> Result<int> {
+    syscall!(raw::TRUNCATE, path, length)
 }
 
 /// Write to a file descriptor.
