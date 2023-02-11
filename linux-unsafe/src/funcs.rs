@@ -223,6 +223,25 @@ pub unsafe fn eventfd2(initval: uint, flags: int) -> Result<int> {
     syscall!(raw::EVENTFD2, initval, flags)
 }
 
+/// Immediately terminate the current thread, without giving Rust or libc
+/// any opportunity to run destructors or other cleanup code.
+#[cfg(have_syscall = "exit")]
+#[inline(always)]
+pub unsafe fn exit(status: int) -> ! {
+    raw::syscall1(raw::EXIT, arg(status));
+    unreachable!()
+}
+
+/// Immediately terminate all threads in the current process's thread group,
+/// without giving Rust or libc any opportunity to run destructors or other
+/// cleanup code.
+#[cfg(have_syscall = "exit_group")]
+#[inline(always)]
+pub unsafe fn exit_group(status: int) -> ! {
+    raw::syscall1(raw::EXIT_GROUP, arg(status));
+    unreachable!()
+}
+
 /// Check user's permissions for a file.
 #[cfg(have_syscall = "faccessat")]
 #[inline(always)]
@@ -317,6 +336,27 @@ pub unsafe fn ftruncate(fd: int, length: off_t) -> Result<int> {
     syscall!(raw::FTRUNCATE, fd, length)
 }
 
+/// Determine CPU and NUMA node on which the calling thread is running.
+#[cfg(have_syscall = "getcpu")]
+#[inline(always)]
+pub unsafe fn getcpu(cpu: *const uint, node: *const uint) -> Result<int> {
+    syscall!(raw::GETCPU, cpu, node)
+}
+
+/// Get current working directory.
+#[cfg(have_syscall = "getcwd")]
+#[inline(always)]
+pub unsafe fn getcwd(buf: *mut char, size: size_t) -> Result<*mut char> {
+    syscall!(raw::GETCWD, buf, size)
+}
+
+/// Get the process id (PID) of the current process.
+#[cfg(have_syscall = "getpid")]
+#[inline(always)]
+pub unsafe fn getpid() -> pid_t {
+    raw::syscall0(raw::GETPID) as pid_t
+}
+
 /// Arbitrary requests for file descriptors representing devices.
 ///
 /// This system call is _particularly_ unsafe, because the final argument
@@ -334,46 +374,6 @@ pub unsafe fn ioctl(fd: int, request: ulong, arg: impl crate::args::AsRawV) -> R
     } else {
         syscall!(raw::IOCTL, fd, request, arg)
     }
-}
-
-/// Determine CPU and NUMA node on which the calling thread is running.
-#[cfg(have_syscall = "getcpu")]
-#[inline(always)]
-pub unsafe fn getcpu(cpu: *const uint, node: *const uint) -> Result<int> {
-    syscall!(raw::GETCPU, cpu, node)
-}
-
-/// Get current working directory.
-#[cfg(have_syscall = "getcwd")]
-#[inline(always)]
-pub unsafe fn getcwd(buf: *mut char, size: size_t) -> Result<*mut char> {
-    syscall!(raw::GETCWD, buf, size)
-}
-
-/// Immediately terminate the current thread, without giving Rust or libc
-/// any opportunity to run destructors or other cleanup code.
-#[cfg(have_syscall = "exit")]
-#[inline(always)]
-pub unsafe fn exit(status: int) -> ! {
-    raw::syscall1(raw::EXIT, arg(status));
-    unreachable!()
-}
-
-/// Immediately terminate all threads in the current process's thread group,
-/// without giving Rust or libc any opportunity to run destructors or other
-/// cleanup code.
-#[cfg(have_syscall = "exit_group")]
-#[inline(always)]
-pub unsafe fn exit_group(status: int) -> ! {
-    raw::syscall1(raw::EXIT_GROUP, arg(status));
-    unreachable!()
-}
-
-/// Get the process id (PID) of the current process.
-#[cfg(have_syscall = "getpid")]
-#[inline(always)]
-pub unsafe fn getpid() -> pid_t {
-    raw::syscall0(raw::GETPID) as pid_t
 }
 
 /// Reposition the read/write offset for a file.
