@@ -5,6 +5,7 @@ use std::{os::unix::prelude::OsStrExt, path::PathBuf};
 use tempfile::tempdir;
 
 use super::*;
+use std::ffi::CString;
 
 #[test]
 fn create_write_close_open_read_close() {
@@ -19,9 +20,9 @@ fn create_write_close_open_read_close() {
     println!("temporary file is {:?}", filename);
     // This crate is only for Linux systems, so it's safe to assume that
     // an OsStr is raw filename bytes as the kernel will expect.
-    let filename_raw = filename.as_os_str().as_bytes();
+    let filename_raw = CString::new(filename.as_os_str().as_bytes()).unwrap();
 
-    let mut f = File::create_raw(filename_raw, 0o666)
+    let mut f = File::create_raw(&filename_raw, 0o666)
         .map_err(|e| e.into_std_io_error())
         .expect("failed to create file");
     f.write_all(message).expect("failed to write to file");
@@ -29,7 +30,7 @@ fn create_write_close_open_read_close() {
         .map_err(|e| e.into_std_io_error())
         .expect("failed to close file");
 
-    let mut f = File::open_raw(filename_raw, linux_unsafe::O_RDONLY, 0)
+    let mut f = File::open_raw(&filename_raw, linux_unsafe::O_RDONLY, 0)
         .map_err(|e| e.into_std_io_error())
         .expect("failed to reopen file");
     let mut v: Vec<u8> = Vec::new();
@@ -55,9 +56,9 @@ fn dup() {
 
     // This crate is only for Linux systems, so it's safe to assume that
     // an OsStr is raw filename bytes as the kernel will expect.
-    let filename_raw = filename.as_os_str().as_bytes();
+    let filename_raw = CString::new(filename.as_os_str().as_bytes()).unwrap();
 
-    let f = File::create_raw(filename_raw, 0o666)
+    let f = File::create_raw(&filename_raw, 0o666)
         .map_err(|e| e.into_std_io_error())
         .expect("failed to create file");
 
@@ -75,7 +76,7 @@ fn dup() {
         .map_err(|e| e.into_std_io_error())
         .expect("failed to close original file");
 
-    let mut f = File::open_raw(filename_raw, linux_unsafe::O_RDONLY, 0)
+    let mut f = File::open_raw(&filename_raw, linux_unsafe::O_RDONLY, 0)
         .map_err(|e| e.into_std_io_error())
         .expect("failed to reopen file");
     let mut v: Vec<u8> = Vec::new();

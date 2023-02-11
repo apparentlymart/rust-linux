@@ -1,6 +1,8 @@
 use crate::result::Result;
 use crate::seek::SeekFrom;
 
+use core::ffi::CStr;
+
 /// An encapsulated Linux file descriptor.
 ///
 /// The methods of `File` are largely just thin wrappers around Linux system
@@ -36,7 +38,7 @@ impl File {
     /// This function exposes the raw `mode` argument from the underlying
     /// system call, which the caller must populate appropriately.
     #[inline]
-    pub fn create_raw(path: &[u8], mode: linux_unsafe::mode_t) -> Result<Self> {
+    pub fn create_raw(path: &CStr, mode: linux_unsafe::mode_t) -> Result<Self> {
         let path_raw = path.as_ptr() as *const linux_unsafe::char;
         let result = unsafe { linux_unsafe::creat(path_raw, mode as linux_unsafe::mode_t) };
         result
@@ -50,7 +52,7 @@ impl File {
     /// set the "create" option then you will need to use
     /// [`Self::open_with_mode`] instead, to specify the mode of the new file.
     #[inline(always)]
-    pub fn open(path: &[u8], options: OpenOptions<OpenWithoutMode>) -> Result<Self> {
+    pub fn open(path: &CStr, options: OpenOptions<OpenWithoutMode>) -> Result<Self> {
         Self::open_raw(path, options.flags, 0)
     }
 
@@ -60,7 +62,7 @@ impl File {
     /// most options you can use [`Self::open`] instead.
     #[inline(always)]
     pub fn open_with_mode(
-        path: &[u8],
+        path: &CStr,
         options: OpenOptions<OpenWithMode>,
         mode: linux_unsafe::mode_t,
     ) -> Result<Self> {
@@ -73,7 +75,7 @@ impl File {
     /// underlying system call, which the caller must populate appropriately.
     #[inline]
     pub fn open_raw(
-        path: &[u8],
+        path: &CStr,
         flags: linux_unsafe::int,
         mode: linux_unsafe::mode_t,
     ) -> Result<Self> {
