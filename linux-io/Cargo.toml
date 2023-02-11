@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 description = "Lightweight abstractions around Linux system calls related to file descriptors."
 license = "MIT"
-repository = "https://github.com/apparentlymart/rust-linux-safe"
+repository = "https://github.com/apparentlymart/rust-linux"
 
 [dependencies]
 linux-unsafe = { path = "../linux-unsafe" }
