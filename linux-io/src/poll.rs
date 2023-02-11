@@ -1,5 +1,7 @@
 use core::cell::UnsafeCell;
 
+use crate::result::{Error, Result};
+
 /// A request for events related to a particular file descriptor in a call to
 /// [`poll`].
 #[repr(C)]
@@ -142,10 +144,7 @@ impl PollResponse {
 /// The kernel may have an upper limit on the number of entries in reqs that
 /// is smaller than the maximum value of `usize`. If the given slice is too
 /// long then this function will return the EINVAL error code.
-pub fn poll(
-    reqs: &mut [PollRequest],
-    timeout: linux_unsafe::int,
-) -> super::Result<linux_unsafe::int> {
+pub fn poll(reqs: &mut [PollRequest], timeout: linux_unsafe::int) -> Result<linux_unsafe::int> {
     // NOTE: We're effectively transmuting our PollRequest type into
     // the kernel's struct pollfd here. This is safe because the layout
     // of our struct should exactly match the kernel's, and the kernel
@@ -156,7 +155,7 @@ pub fn poll(
         // More file descriptors than the kernel can physicall support on this
         // platform, so we'll return a synthetic EINVAL to mimic how the
         // kernel would behave if it had a smaller soft limit.
-        return Err(super::Error::new(22)); // hard-coded EINVAL value (TODO: expose this as a constant from linux-unsafe instead?)
+        return Err(Error::new(22)); // hard-coded EINVAL value (TODO: expose this as a constant from linux-unsafe instead?)
     }
     let reqs_count = reqs.len() as linux_unsafe::nfds_t;
     let result = unsafe { linux_unsafe::poll(reqs_ptr, reqs_count, timeout) };
