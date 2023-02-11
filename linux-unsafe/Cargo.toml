@@ -1,8 +1,9 @@
 [package]
-name = "linux-unsafe"
-version = "0.5.0"
-edition = "2021"
 description = "Raw linux system call stubs."
+name = "linux-unsafe"
+version = "0.6.0"
+
+edition = "2021"
 license = "MIT"
 repository = "https://github.com/apparentlymart/rust-linux"
 
