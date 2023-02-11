@@ -192,7 +192,7 @@ impl File {
     /// file.
     #[inline]
     pub fn sync(&mut self) -> Result<()> {
-        let result = unsafe { linux_unsafe::syncfs(self.fd) };
+        let result = unsafe { linux_unsafe::fsync(self.fd) };
         result.map(|_| ()).map_err(|e| e.into())
     }
 
