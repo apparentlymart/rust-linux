@@ -255,6 +255,17 @@ impl std::io::Seek for File {
 }
 
 #[cfg(feature = "std")]
+impl From<std::os::fd::OwnedFd> for File {
+    fn from(value: std::os::fd::OwnedFd) -> Self {
+        use std::os::fd::AsRawFd;
+
+        Self {
+            fd: value.as_raw_fd().into(),
+        }
+    }
+}
+
+#[cfg(feature = "std")]
 impl std::os::fd::FromRawFd for File {
     unsafe fn from_raw_fd(fd: std::os::fd::RawFd) -> Self {
         Self {
