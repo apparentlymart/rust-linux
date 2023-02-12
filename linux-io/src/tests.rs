@@ -117,7 +117,7 @@ fn fcntl_dup() {
 }
 
 #[test]
-fn socket_bind_tcp() {
+fn socket_ipv4_bind_tcp() {
     use crate::sockaddr;
     use std::println;
 
@@ -130,6 +130,26 @@ fn socket_bind_tcp() {
     // collisions when running these tests on systems that probably have
     // other network software running.
     let addr = sockaddr::ip::SockAddrIpv4::new(sockaddr::ip::Ipv4Addr::LOOPBACK, 0);
+    println!("binding to {:?}", addr);
+    f.bind(addr)
+        .map_err(|e| e.into_std_io_error())
+        .expect("failed to bind socket");
+}
+
+#[test]
+fn socket_ipv6_bind_tcp() {
+    use crate::sockaddr;
+    use std::println;
+
+    // AF_INET6 + SOCK_STREAM is implicitly TCP, without explicitly naming it
+    let mut f = File::socket(sockaddr::ip::AF_INET6, sockaddr::sock_type::SOCK_STREAM, 0)
+        .map_err(|e| e.into_std_io_error())
+        .expect("failed to create socket");
+
+    // Using a dynamically-assigned loopback port to minimize the risk of
+    // collisions when running these tests on systems that probably have
+    // other network software running.
+    let addr = sockaddr::ip::SockAddrIpv6::new(sockaddr::ip::Ipv6Addr::LOOPBACK, 0);
     println!("binding to {:?}", addr);
     f.bind(addr)
         .map_err(|e| e.into_std_io_error())
