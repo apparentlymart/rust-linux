@@ -106,11 +106,10 @@ fn fcntl_dup() {
         .map_err(|e| e.into_std_io_error())
         .expect("failed to create file");
 
-    let raw_fd = f
+    let f2 = f
         .fcntl(crate::fd::fcntl::F_DUPFD, 0)
         .map_err(|e| e.into_std_io_error())
         .expect("failed to create file");
-    let f2 = unsafe { File::from_raw_fd(raw_fd) };
     drop(f2); // close the dup
     drop(f); // close the original
 

@@ -14,7 +14,7 @@ use linux_unsafe::int;
 
 /// Duplicate the file descriptor fd using the lowest-numbered
 /// available file descriptor greater than or equal to `arg`.
-pub const F_DUPFD: DirectFcntlCmd<int, int> = unsafe { fcntl_cmd(0) };
+pub const F_DUPFD: DirectFcntlCmd<int, super::File> = unsafe { fcntl_cmd(0) };
 
 /// Retrieve the function descriptor flags.
 pub const F_GETFD: DirectFcntlCmd<(), int> = unsafe { fcntl_cmd(1) };
@@ -146,7 +146,7 @@ unsafe impl<'a, Arg: AsRawV, Result: FromFcntlResult> FcntlCmd<'a> for DirectFcn
     type Result = Result;
 
     fn prepare_fcntl_result(&self, raw: int) -> Self::Result {
-        Self::Result::prepare_result(raw)
+        unsafe { Self::Result::prepare_result(raw) }
     }
 }
 
@@ -169,7 +169,7 @@ unsafe impl<'a, Arg, Result: FromFcntlResult> FcntlCmd<'a> for ConstPtrFcntlCmd<
     type Result = Result;
 
     fn prepare_fcntl_result(&self, raw: int) -> Self::Result {
-        Self::Result::prepare_result(raw)
+        unsafe { Self::Result::prepare_result(raw) }
     }
 }
 
@@ -192,25 +192,32 @@ unsafe impl<'a, Arg, Result: FromFcntlResult> FcntlCmd<'a> for MutPtrFcntlCmd<Ar
     type Result = Result;
 
     fn prepare_fcntl_result(&self, raw: int) -> Self::Result {
-        Self::Result::prepare_result(raw)
+        unsafe { Self::Result::prepare_result(raw) }
     }
 }
 
 /// Trait for types that can be returned by `fcntl` calls.
 pub trait FromFcntlResult {
-    fn prepare_result(raw: int) -> Self;
+    unsafe fn prepare_result(raw: int) -> Self;
 }
 
 impl FromFcntlResult for int {
     #[inline(always)]
-    fn prepare_result(raw: int) -> Self {
+    unsafe fn prepare_result(raw: int) -> Self {
         raw
     }
 }
 
 impl FromFcntlResult for () {
     #[inline(always)]
-    fn prepare_result(_: int) -> () {
+    unsafe fn prepare_result(_: int) -> () {
         ()
+    }
+}
+
+impl FromFcntlResult for super::File {
+    #[inline(always)]
+    unsafe fn prepare_result(raw: int) -> Self {
+        super::File::from_raw_fd(raw)
     }
 }
