@@ -172,3 +172,25 @@ unsafe impl super::SockAddr for SockAddrIpv4 {
         )
     }
 }
+
+#[cfg(feature = "std")]
+extern crate std;
+
+/// Additional functions available when the `std` feature is active, for
+/// integrating with the standard library.
+#[cfg(feature = "std")]
+impl Ipv4Addr {
+    /// Converts the standard library's representation of IPv4 addresses into
+    /// our representation.
+    #[inline]
+    pub const fn from_std(addr: std::net::Ipv4Addr) -> Self {
+        Self::from_octets(addr.octets())
+    }
+}
+
+#[cfg(feature = "std")]
+impl From<std::net::Ipv4Addr> for Ipv4Addr {
+    fn from(value: std::net::Ipv4Addr) -> Self {
+        Self::from_std(value)
+    }
+}
