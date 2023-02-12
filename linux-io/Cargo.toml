@@ -16,3 +16,7 @@ tempfile = "3.3.0"
 [features]
 default = ["std"]
 std = []
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
