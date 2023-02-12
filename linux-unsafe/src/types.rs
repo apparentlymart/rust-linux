@@ -149,5 +149,8 @@ pub struct flock {
     // Sparc also has padding, but no other extra fields.
 }
 
+/// The type for representing socket address families.
+pub type sa_family_t = ushort;
+
 // Also include architecture-specific types.
 pub use crate::raw::types::*;

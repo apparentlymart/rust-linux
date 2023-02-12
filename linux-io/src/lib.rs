@@ -33,5 +33,8 @@ pub mod seek;
 pub mod fd;
 pub use fd::{File, OpenOptions, OPEN_READ_ONLY, OPEN_READ_WRITE, OPEN_WRITE_ONLY};
 
+/// Socket address manipulation.
+pub mod sockaddr;
+
 #[cfg(test)]
 mod tests;

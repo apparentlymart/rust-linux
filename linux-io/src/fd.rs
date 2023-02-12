@@ -273,6 +273,42 @@ impl File {
         let result = unsafe { linux_unsafe::fcntl(self.fd, cmd, arg) };
         result.map(|v| v as _).map_err(|e| e.into())
     }
+
+    /// Bind an address to a socket.
+    #[inline]
+    pub unsafe fn bind(&mut self, addr: impl crate::sockaddr::SockAddr) -> Result<()> {
+        let (raw_ptr, raw_len) = unsafe { addr.sockaddr_raw_const() };
+        self.bind_raw(raw_ptr, raw_len)
+    }
+
+    /// Bind an address to a socket using a raw pointer.
+    #[inline]
+    pub unsafe fn bind_raw(
+        &mut self,
+        addr: *const linux_unsafe::void,
+        addrlen: linux_unsafe::socklen_t,
+    ) -> Result<()> {
+        let result = unsafe { linux_unsafe::bind(self.fd, addr, addrlen) };
+        result.map(|_| ()).map_err(|e| e.into())
+    }
+
+    /// Initiate a connection on a socket.
+    #[inline]
+    pub unsafe fn connect(&mut self, addr: impl crate::sockaddr::SockAddr) -> Result<()> {
+        let (raw_ptr, raw_len) = unsafe { addr.sockaddr_raw_const() };
+        self.connect_raw(raw_ptr, raw_len)
+    }
+
+    /// Initiate a connection on a socket using a raw pointer.
+    #[inline]
+    pub unsafe fn connect_raw(
+        &mut self,
+        addr: *const linux_unsafe::void,
+        addrlen: linux_unsafe::socklen_t,
+    ) -> Result<()> {
+        let result = unsafe { linux_unsafe::connect(self.fd, addr, addrlen) };
+        result.map(|_| ()).map_err(|e| e.into())
+    }
 }
 
 impl Drop for File {
