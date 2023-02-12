@@ -1,6 +1,6 @@
 /// Socket address type for the IPv4 protocol family.
 #[derive(Clone, Copy, Debug)]
-#[repr(C)]
+#[repr(C, align(8))]
 pub struct SockAddrIpv4 {
     sin_family: linux_unsafe::sa_family_t,
     sin_port: u16, // (but in network byte order)
@@ -268,6 +268,41 @@ impl Ipv6Addr {
     }
 }
 
+/// Represents a socket address that can be for either an IPv4 socket or an
+/// IPv6 socket, chosen dynamically at runtime.
+#[derive(Clone, Copy, Debug)]
+#[repr(C, u8)]
+pub enum SockAddrIp {
+    V4(SockAddrIpv4),
+    V6(SockAddrIpv6),
+}
+
+impl SockAddrIp {
+    pub fn new(host_address: impl Into<IpAddr>, port: u16) -> Self {
+        let host_address = host_address.into();
+        match host_address {
+            IpAddr::V4(addr) => SockAddrIp::V4(SockAddrIpv4::new(addr, port)),
+            IpAddr::V6(addr) => SockAddrIp::V6(SockAddrIpv6::new(addr, port)),
+        }
+    }
+
+    pub const fn address_family(&self) -> linux_unsafe::sa_family_t {
+        match self {
+            SockAddrIp::V4(_) => AF_INET,
+            SockAddrIp::V6(_) => AF_INET6,
+        }
+    }
+}
+
+/// Represents a host address that can be either an IPv4 address or an IPv6
+/// address chosen dynamically at runtime.
+#[derive(Clone, Copy, Debug)]
+#[repr(C, u8)]
+pub enum IpAddr {
+    V4(Ipv4Addr),
+    V6(Ipv6Addr),
+}
+
 /// Represents the IPv4 address family.
 pub const AF_INET: linux_unsafe::sa_family_t = 2;
 
@@ -336,6 +371,42 @@ unsafe impl super::SockAddr for SockAddrIpv6 {
     }
 }
 
+unsafe impl super::SockAddr for SockAddrIp {
+    #[inline(always)]
+    unsafe fn sockaddr_raw_const(&self) -> (*const linux_unsafe::void, linux_unsafe::socklen_t) {
+        // We'll take the pointer and size of the payload of the selected variant.
+        // This is okay because SockAddrIp is repr(C) and so the payload behaves
+        // like a C union.
+        match self {
+            SockAddrIp::V4(a) => a.sockaddr_raw_const(),
+            SockAddrIp::V6(a) => a.sockaddr_raw_const(),
+        }
+    }
+
+    #[inline(always)]
+    unsafe fn sockaddr_raw_mut(&mut self) -> (*mut linux_unsafe::void, linux_unsafe::socklen_t) {
+        // We'll take the pointer and size of the payload of the selected variant.
+        // This is okay because SockAddrIp is repr(C) and so the payload behaves
+        // like a C union.
+        match self {
+            SockAddrIp::V4(a) => a.sockaddr_raw_mut(),
+            SockAddrIp::V6(a) => a.sockaddr_raw_mut(),
+        }
+    }
+}
+
+impl From<Ipv4Addr> for IpAddr {
+    fn from(value: Ipv4Addr) -> Self {
+        IpAddr::V4(value)
+    }
+}
+
+impl From<Ipv6Addr> for IpAddr {
+    fn from(value: Ipv6Addr) -> Self {
+        IpAddr::V6(value)
+    }
+}
+
 #[cfg(feature = "std")]
 extern crate std;
 
@@ -373,6 +444,28 @@ impl Ipv6Addr {
 #[cfg(feature = "std")]
 impl From<std::net::Ipv6Addr> for Ipv6Addr {
     fn from(value: std::net::Ipv6Addr) -> Self {
+        Self::from_std(value)
+    }
+}
+
+/// Additional functions available when the `std` feature is active, for
+/// integrating with the standard library.
+#[cfg(feature = "std")]
+impl IpAddr {
+    /// Converts the standard library's representation of IPv4 addresses into
+    /// our representation.
+    #[inline]
+    pub const fn from_std(addr: std::net::IpAddr) -> Self {
+        match addr {
+            std::net::IpAddr::V4(addr) => Self::V4(Ipv4Addr::from_octets(addr.octets())),
+            std::net::IpAddr::V6(addr) => Self::V6(Ipv6Addr::from_octets(addr.octets())),
+        }
+    }
+}
+
+#[cfg(feature = "std")]
+impl From<std::net::IpAddr> for IpAddr {
+    fn from(value: std::net::IpAddr) -> Self {
         Self::from_std(value)
     }
 }

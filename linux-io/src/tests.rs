@@ -155,3 +155,25 @@ fn socket_ipv6_bind_tcp() {
         .map_err(|e| e.into_std_io_error())
         .expect("failed to bind socket");
 }
+
+#[test]
+fn socket_dynip_bind_tcp() {
+    use crate::sockaddr;
+    use std::println;
+
+    // Using a dynamically-assigned loopback port to minimize the risk of
+    // collisions when running these tests on systems that probably have
+    // other network software running.
+    // Passing an IPv4 address to SockAddrIp::new causes it to return an
+    // IPv4 socket address.
+    let addr = sockaddr::ip::SockAddrIp::new(sockaddr::ip::Ipv4Addr::LOOPBACK, 0);
+
+    let mut f = File::socket(addr.address_family(), sockaddr::sock_type::SOCK_STREAM, 0)
+        .map_err(|e| e.into_std_io_error())
+        .expect("failed to create socket");
+
+    println!("binding to {:?}", addr);
+    f.bind(addr)
+        .map_err(|e| e.into_std_io_error())
+        .expect("failed to bind socket");
+}
