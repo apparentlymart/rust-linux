@@ -7,11 +7,5 @@ version = "0.1.0"
 linux-io = {path = "../linux-io", default-features = false}
 linux-unsafe = {path = "../linux-unsafe"}
 
-[profile.dev]
-panic = "abort"
-
-[profile.release]
-panic = "abort"
-
 [package.metadata.release]
 release = false

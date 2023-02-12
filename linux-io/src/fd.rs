@@ -1,7 +1,11 @@
+use linux_unsafe::args::AsRawV;
+
 use crate::result::Result;
 use crate::seek::SeekFrom;
 
 use core::ffi::CStr;
+
+pub mod fcntl;
 
 /// An encapsulated Linux file descriptor.
 ///
@@ -233,6 +237,40 @@ impl File {
         count: linux_unsafe::size_t,
     ) -> Result<linux_unsafe::size_t> {
         let result = unsafe { linux_unsafe::write(self.fd, buf, count) };
+        result.map(|v| v as _).map_err(|e| e.into())
+    }
+
+    /// Safe wrapper for the `fcntl` system call.
+    ///
+    /// The safety of this wrapper relies on being passed only correct
+    /// implementations of [`fcntl::FcntlCmd`], some of which are predefined
+    /// as constants in the [`fcntl`] module.
+    ///
+    /// The type of the argument depends on which `cmd` you choose.
+    #[inline]
+    pub fn fcntl<'a, Cmd: fcntl::FcntlCmd<'a>>(
+        &'a mut self,
+        cmd: Cmd,
+        arg: Cmd::ExtArg,
+    ) -> Result<Cmd::Result> {
+        let (raw_cmd, raw_arg) = cmd.prepare_fcntl_args(arg);
+        let raw_result = unsafe { self.fcntl_raw(raw_cmd, raw_arg) };
+        raw_result.map(|r| cmd.prepare_fcntl_result(r))
+    }
+
+    /// Direct wrapper around the raw `fcntl` system call.
+    ///
+    /// This system call is particularly unsafe because it interprets its
+    /// last argument differently depending on the value of `cmd`.
+    /// [`Self::fcntl`] provides a slightly safer abstraction around this
+    /// operation.
+    #[inline]
+    pub unsafe fn fcntl_raw(
+        &mut self,
+        cmd: linux_unsafe::int,
+        arg: impl AsRawV,
+    ) -> Result<linux_unsafe::int> {
+        let result = unsafe { linux_unsafe::fcntl(self.fd, cmd, arg) };
         result.map(|v| v as _).map_err(|e| e.into())
     }
 }

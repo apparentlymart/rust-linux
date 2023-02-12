@@ -135,5 +135,19 @@ pub union epoll_data {
     pub u64: u64,
 }
 
+/// A type used with some [`crate::fcntl`] commands.
+#[repr(C)]
+pub struct flock {
+    pub l_type: short,
+    pub l_whence: short,
+    pub l_start: off_t,
+    pub l_len: off_t,
+    pub l_pid: pid_t,
+    // TODO: MIPS Linux has an extra field l_sysid and some padding.
+    // We don't support MIPS yet so we're ignoring that, but we'll
+    // need to deal with that if we add MIPS support later.
+    // Sparc also has padding, but no other extra fields.
+}
+
 // Also include architecture-specific types.
 pub use crate::raw::types::*;

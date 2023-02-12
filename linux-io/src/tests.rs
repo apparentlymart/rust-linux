@@ -89,3 +89,30 @@ fn dup() {
 
     assert_eq!(v.as_slice(), message, "wrong file contents");
 }
+
+#[test]
+fn fcntl_dup() {
+    let dir = tempdir().unwrap();
+    let mut filename: PathBuf = dir.path().into();
+    filename.push("test.txt");
+    use std::println;
+    println!("temporary file is {:?}", filename);
+
+    // This crate is only for Linux systems, so it's safe to assume that
+    // an OsStr is raw filename bytes as the kernel will expect.
+    let filename_raw = CString::new(filename.as_os_str().as_bytes()).unwrap();
+
+    let mut f = File::create_raw(&filename_raw, 0o666)
+        .map_err(|e| e.into_std_io_error())
+        .expect("failed to create file");
+
+    let raw_fd = f
+        .fcntl(crate::fd::fcntl::F_DUPFD, 0)
+        .map_err(|e| e.into_std_io_error())
+        .expect("failed to create file");
+    let f2 = unsafe { File::from_raw_fd(raw_fd) };
+    drop(f2); // close the dup
+    drop(f); // close the original
+
+    dir.close().expect("failed to clean temporary directory");
+}
