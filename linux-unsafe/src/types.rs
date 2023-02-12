@@ -152,5 +152,17 @@ pub struct flock {
 /// The type for representing socket address families.
 pub type sa_family_t = ushort;
 
+/// The type for representing socket communication model types.
+#[repr(C)]
+pub enum sock_type {
+    SOCK_STREAM = 1,
+    SOCK_DGRAM = 2,
+    SOCK_RAW = 3,
+    SOCK_RDM = 4,
+    SOCK_SEQPACKET = 5,
+    SOCK_DCCP = 6,
+    SOCK_PACKET = 10,
+}
+
 // Also include architecture-specific types.
 pub use crate::raw::types::*;

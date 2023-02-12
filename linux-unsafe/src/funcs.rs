@@ -425,6 +425,13 @@ pub unsafe fn readv(fd: int, iov: *mut iovec, iovcount: int) -> Result<size_t> {
     syscall!(raw::READV, fd, iov, iovcount)
 }
 
+/// Create a socket endpoint for communication.
+#[cfg(have_syscall = "socket")]
+#[inline(always)]
+pub unsafe fn socket(family: sa_family_t, typ: sock_type, protocol: int) -> Result<int> {
+    syscall!(raw::SOCKET, family, typ as u32, protocol)
+}
+
 /// Commit all filesystem caches to disk.
 #[cfg(have_syscall = "sync")]
 #[inline(always)]

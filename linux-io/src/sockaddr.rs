@@ -1,6 +1,8 @@
 /// Address types for the IPv4 and IPv6 protocol families.
 pub mod ip;
 
+pub use linux_unsafe::sock_type;
+
 /// A trait implemented by all socket address types.
 ///
 /// **Safety:**

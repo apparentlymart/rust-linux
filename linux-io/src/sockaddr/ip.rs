@@ -1,10 +1,15 @@
 /// Socket address type for the IPv4 protocol family.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 #[repr(C)]
 pub struct SockAddrIpv4 {
     sin_family: linux_unsafe::sa_family_t,
     sin_port: u16, // (but in network byte order)
     sin_addr: Ipv4Addr,
+
+    // The kernel expects sockaddr_in to be 16 bytes long, even though
+    // only the first eight bytes are actually useful. We always set these
+    // padding bytes to zero.
+    sin_zero: [u8; 8],
 }
 
 impl SockAddrIpv4 {
@@ -19,6 +24,7 @@ impl SockAddrIpv4 {
             sin_family: AF_INET,
             sin_port: port.to_be(),
             sin_addr: host_addr,
+            sin_zero: [0; 8],
         }
     }
 
@@ -39,7 +45,7 @@ impl SockAddrIpv4 {
 ///
 /// Note that this isn't an IPv4 _socket address_ type; use [`SockAddrIpv4`]
 /// to represent both the host address and port number for an IPv4 socket.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 #[repr(C)]
 pub struct Ipv4Addr {
     s_addr: u32, // (but in network byte order)
@@ -82,7 +88,7 @@ impl Ipv4Addr {
         s_addr: 0xe000006a_u32.to_be(),
     };
 
-    /// Constructs an Ipv4Addr directly from a u32 value written in the
+    /// Constructs an [`Ipv4Addr`] directly from a u32 value written in the
     /// host byte order.
     ///
     /// For example, the standard loopback address `127.0.0.1` should be
@@ -96,10 +102,27 @@ impl Ipv4Addr {
         }
     }
 
+    /// Constructs an [`Ipv4Addr`] from the given octets which are interpreted
+    /// in network byte order, meaning that the first element corresponds with
+    /// the first decimal digit in the conventional four-segment dotted decimal
+    /// IP address representation.
+    #[inline(always)]
+    pub const fn from_octets(raw: [u8; 4]) -> Self {
+        // Note: we're first interpreting raw into the _host_ byte order, and
+        // then from_u32 will reinterpret that into the network byte order.
+        Self::from_u32(u32::from_be_bytes(raw))
+    }
+
     /// Returns the raw u32 value of the address in host (_not_ network) byte order.
     #[inline(always)]
     pub const fn as_u32(&self) -> u32 {
         self.s_addr.to_be() // undoes the to_be we did on construction if we're on a little-endian system
+    }
+
+    /// Returns the raw octets of the address in network byte order.
+    #[inline(always)]
+    pub const fn as_octets(&self) -> [u8; 4] {
+        self.as_u32().to_be_bytes()
     }
 }
 

@@ -81,6 +81,19 @@ impl File {
             .map_err(|e| e.into())
     }
 
+    // Create a new socket using the `socket` system call.
+    #[inline]
+    pub fn socket(
+        domain: linux_unsafe::sa_family_t,
+        typ: crate::sockaddr::sock_type,
+        protocol: linux_unsafe::int,
+    ) -> Result<Self> {
+        let result = unsafe { linux_unsafe::socket(domain, typ, protocol) };
+        result
+            .map(|fd| unsafe { Self::from_raw_fd(fd as linux_unsafe::int) })
+            .map_err(|e| e.into())
+    }
+
     /// Wrap an existing raw file descriptor into a [`File`].
     ///
     /// Safety:
@@ -276,9 +289,9 @@ impl File {
 
     /// Bind an address to a socket.
     #[inline]
-    pub unsafe fn bind(&mut self, addr: impl crate::sockaddr::SockAddr) -> Result<()> {
+    pub fn bind(&mut self, addr: impl crate::sockaddr::SockAddr) -> Result<()> {
         let (raw_ptr, raw_len) = unsafe { addr.sockaddr_raw_const() };
-        self.bind_raw(raw_ptr, raw_len)
+        unsafe { self.bind_raw(raw_ptr, raw_len) }
     }
 
     /// Bind an address to a socket using a raw pointer.
@@ -294,9 +307,9 @@ impl File {
 
     /// Initiate a connection on a socket.
     #[inline]
-    pub unsafe fn connect(&mut self, addr: impl crate::sockaddr::SockAddr) -> Result<()> {
+    pub fn connect(&mut self, addr: impl crate::sockaddr::SockAddr) -> Result<()> {
         let (raw_ptr, raw_len) = unsafe { addr.sockaddr_raw_const() };
-        self.connect_raw(raw_ptr, raw_len)
+        unsafe { self.connect_raw(raw_ptr, raw_len) }
     }
 
     /// Initiate a connection on a socket using a raw pointer.

@@ -10,13 +10,13 @@ use std::ffi::CString;
 #[test]
 fn create_write_close_open_read_close() {
     use std::io::{Read, Write};
+    use std::println;
 
     let message = b"Hello!\n";
 
     let dir = tempdir().unwrap();
     let mut filename: PathBuf = dir.path().into();
     filename.push("test.txt");
-    use std::println;
     println!("temporary file is {:?}", filename);
     // This crate is only for Linux systems, so it's safe to assume that
     // an OsStr is raw filename bytes as the kernel will expect.
@@ -114,4 +114,24 @@ fn fcntl_dup() {
     drop(f); // close the original
 
     dir.close().expect("failed to clean temporary directory");
+}
+
+#[test]
+fn socket_bind_tcp() {
+    use crate::sockaddr;
+    use std::println;
+
+    // AF_INET + SOCK_STREAM is implicitly TCP, without explicitly naming it
+    let mut f = File::socket(sockaddr::ip::AF_INET, sockaddr::sock_type::SOCK_STREAM, 0)
+        .map_err(|e| e.into_std_io_error())
+        .expect("failed to create socket");
+
+    // Using a dynamically-assigned loopback port to minimize the risk of
+    // collisions when running these tests on systems that probably have
+    // other network software running.
+    let addr = sockaddr::ip::SockAddrIpv4::new(sockaddr::ip::Ipv4Addr::LOOPBACK, 0);
+    println!("binding to {:?}", addr);
+    f.bind(addr)
+        .map_err(|e| e.into_std_io_error())
+        .expect("failed to bind socket");
 }
