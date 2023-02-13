@@ -223,3 +223,73 @@ fn socket_dynipv6mappedv4_bind_tcp() {
         .map_err(|e| e.into_std_io_error())
         .expect("failed to bind socket");
 }
+
+#[test]
+fn socket_getsockopt() {
+    use crate::sockaddr;
+    use std::println;
+
+    let mut f = File::socket(sockaddr::ip::AF_INET, sockaddr::sock_type::SOCK_STREAM, 0)
+        .map_err(|e| e.into_std_io_error())
+        .expect("failed to create socket");
+
+    let addr = sockaddr::ip::SockAddrIpv4::new(sockaddr::ip::Ipv4Addr::LOOPBACK, 0);
+    println!("binding to {:?}", addr);
+    f.bind(addr)
+        .map_err(|e| e.into_std_io_error())
+        .expect("failed to bind socket");
+
+    let acceptconn = f
+        .getsockopt(crate::fd::sockopt::SO_ACCEPTCONN)
+        .map_err(|e| e.into_std_io_error())
+        .expect("failed to getsockopt");
+    assert_eq!(
+        acceptconn, 0,
+        "socket is already accepting connections somehow"
+    );
+
+    f.listen(1)
+        .map_err(|e| e.into_std_io_error())
+        .expect("failed to listen");
+
+    let acceptconn = f
+        .getsockopt(crate::fd::sockopt::SO_ACCEPTCONN)
+        .map_err(|e| e.into_std_io_error())
+        .expect("failed to getsockopt");
+    assert_eq!(
+        acceptconn, 1,
+        "socket is not accepting connections after listen"
+    );
+}
+
+#[test]
+fn socket_setsockopt() {
+    use crate::sockaddr;
+    use std::println;
+
+    let mut f = File::socket(sockaddr::ip::AF_INET, sockaddr::sock_type::SOCK_STREAM, 0)
+        .map_err(|e| e.into_std_io_error())
+        .expect("failed to create socket");
+
+    let addr = sockaddr::ip::SockAddrIpv4::new(sockaddr::ip::Ipv4Addr::LOOPBACK, 0);
+    println!("binding to {:?}", addr);
+    f.bind(addr)
+        .map_err(|e| e.into_std_io_error())
+        .expect("failed to bind socket");
+
+    let dontroute = f
+        .getsockopt(crate::fd::sockopt::SO_DONTROUTE)
+        .map_err(|e| e.into_std_io_error())
+        .expect("failed to getsockopt");
+    assert_eq!(dontroute, 0, "SO_DONTROUTE is set before we set it");
+
+    f.setsockopt(crate::fd::sockopt::SO_DONTROUTE, 1)
+        .map_err(|e| e.into_std_io_error())
+        .expect("failed to setsockopt");
+
+    let dontroute = f
+        .getsockopt(crate::fd::sockopt::SO_DONTROUTE)
+        .map_err(|e| e.into_std_io_error())
+        .expect("failed to getsockopt");
+    assert_eq!(dontroute, 1, "SO_DONTROUTE is not set after we set it");
+}

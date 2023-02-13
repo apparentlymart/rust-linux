@@ -357,6 +357,19 @@ pub unsafe fn getpid() -> pid_t {
     raw::syscall0(raw::GETPID) as pid_t
 }
 
+/// Get a socket option.
+#[cfg(have_syscall = "getsockopt")]
+#[inline(always)]
+pub unsafe fn getsockopt(
+    sockfd: int,
+    level: int,
+    optname: int,
+    optval: *mut void,
+    optlen: *mut socklen_t,
+) -> Result<int> {
+    syscall!(raw::GETSOCKOPT, sockfd, level, optname, optval, optlen)
+}
+
 /// Arbitrary requests for file descriptors representing devices.
 ///
 /// This system call is _particularly_ unsafe, because the final argument
@@ -374,6 +387,13 @@ pub unsafe fn ioctl(fd: int, request: ulong, arg: impl crate::args::AsRawV) -> R
     } else {
         syscall!(raw::IOCTL, fd, request, arg)
     }
+}
+
+/// Listen for connections on a socket.
+#[cfg(have_syscall = "listen")]
+#[inline(always)]
+pub unsafe fn listen(fd: int, backlog: int) -> Result<int> {
+    syscall!(raw::LISTEN, fd, backlog)
 }
 
 /// Reposition the read/write offset for a file.
@@ -423,6 +443,19 @@ pub unsafe fn read(fd: int, buf: *mut void, count: size_t) -> Result<ssize_t> {
 #[inline(always)]
 pub unsafe fn readv(fd: int, iov: *mut iovec, iovcount: int) -> Result<size_t> {
     syscall!(raw::READV, fd, iov, iovcount)
+}
+
+/// Set a socket option.
+#[cfg(have_syscall = "setsockopt")]
+#[inline(always)]
+pub unsafe fn setsockopt(
+    sockfd: int,
+    level: int,
+    optname: int,
+    optval: *const void,
+    optlen: socklen_t,
+) -> Result<int> {
+    syscall!(raw::SETSOCKOPT, sockfd, level, optname, optval, optlen)
 }
 
 /// Create a socket endpoint for communication.

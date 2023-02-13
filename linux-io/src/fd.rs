@@ -3,9 +3,12 @@ use linux_unsafe::args::AsRawV;
 use crate::result::Result;
 use crate::seek::SeekFrom;
 
+use core::cell::UnsafeCell;
 use core::ffi::CStr;
+use core::mem::MaybeUninit;
 
 pub mod fcntl;
+pub mod sockopt;
 
 /// An encapsulated Linux file descriptor.
 ///
@@ -321,6 +324,87 @@ impl File {
     ) -> Result<()> {
         let result = unsafe { linux_unsafe::connect(self.fd, addr, addrlen) };
         result.map(|_| ()).map_err(|e| e.into())
+    }
+
+    /// Listen for incoming connections on this socket.
+    #[inline]
+    pub fn listen(&mut self, backlog: linux_unsafe::int) -> Result<()> {
+        let result = unsafe { linux_unsafe::listen(self.fd, backlog) };
+        result.map(|_| ()).map_err(|e| e.into())
+    }
+
+    /// Get a socket option for a file descriptor representing a socket.
+    ///
+    /// The value for `opt` is typically a constant defined elsewhere in this
+    /// crate, or possibly in another crate, which describes both the level
+    /// and optname for the underlying call and the type of the result.
+    #[inline(always)]
+    pub fn getsockopt<'a, O: sockopt::GetSockOpt<'a>>(&self, opt: O) -> Result<O::Result> {
+        let (level, optname) = opt.prepare_getsockopt_args();
+        let mut buf: MaybeUninit<O::OptVal> = MaybeUninit::zeroed();
+        let optlen = core::mem::size_of::<O::OptVal>() as linux_unsafe::socklen_t;
+        let mut optlen_out = UnsafeCell::new(optlen);
+        let result = unsafe {
+            self.getsockopt_raw(
+                level,
+                optname,
+                buf.as_mut_ptr() as *mut linux_unsafe::void,
+                optlen_out.get(),
+            )
+        }?;
+        if *optlen_out.get_mut() != optlen {
+            // If the length isn't what we expected then we'll assume this
+            // was an invalid GetSockOpt implementation.
+            return Err(crate::result::Error::new(22)); // EINVAL
+        }
+        let buf = unsafe { buf.assume_init() };
+        Ok(opt.prepare_getsockopt_result(result, buf))
+    }
+
+    /// Get a socket option for a file descriptor representing a socket using
+    /// the raw arguments to the `getsockopt` system call.
+    #[inline]
+    pub unsafe fn getsockopt_raw(
+        &self,
+        level: linux_unsafe::int,
+        optname: linux_unsafe::int,
+        optval: *mut linux_unsafe::void,
+        optlen: *mut linux_unsafe::socklen_t,
+    ) -> Result<linux_unsafe::int> {
+        let result = unsafe { linux_unsafe::getsockopt(self.fd, level, optname, optval, optlen) };
+        result.map_err(|e| e.into())
+    }
+
+    /// Set a socket option for a file descriptor representing a socket.
+    ///
+    /// The value for `opt` is typically a constant defined elsewhere in this
+    /// crate, or possibly in another crate, which describes both the level
+    /// and optname for the underlying call and the type of the argument.
+    #[inline(always)]
+    pub fn setsockopt<'a, O: sockopt::SetSockOpt<'a>>(
+        &mut self,
+        opt: O,
+        arg: O::ExtArg,
+    ) -> Result<O::Result> {
+        let (level, optname, optval, optlen) = opt.prepare_setsockopt_args(&arg);
+        let result = unsafe {
+            self.setsockopt_raw(level, optname, optval as *mut linux_unsafe::void, optlen)
+        }?;
+        Ok(opt.prepare_setsockopt_result(result))
+    }
+
+    /// Set a socket option for a file descriptor representing a socket using
+    /// the raw arguments to the `setsockopt` system call.
+    #[inline]
+    pub unsafe fn setsockopt_raw(
+        &mut self,
+        level: linux_unsafe::int,
+        optname: linux_unsafe::int,
+        optval: *const linux_unsafe::void,
+        optlen: linux_unsafe::socklen_t,
+    ) -> Result<linux_unsafe::int> {
+        let result = unsafe { linux_unsafe::setsockopt(self.fd, level, optname, optval, optlen) };
+        result.map_err(|e| e.into())
     }
 }
 
