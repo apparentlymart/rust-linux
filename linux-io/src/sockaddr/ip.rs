@@ -126,7 +126,7 @@ impl Ipv4Addr {
     }
 
     /// Returns the same IP address in the "IPv6 mapped" form.
-    pub const fn as_ipv6_mapped(&self) -> Ipv6Addr {
+    pub const fn to_ipv6_mapped(&self) -> Ipv6Addr {
         let our_octets = self.as_octets();
         let mut new_octets = [0_u8; 16];
         new_octets[10] = 0xff;
@@ -270,26 +270,82 @@ impl Ipv6Addr {
 
 /// Represents a socket address that can be for either an IPv4 socket or an
 /// IPv6 socket, chosen dynamically at runtime.
+#[derive(Clone, Copy)]
+#[repr(transparent)]
+pub struct SockAddrIp(SockAddrIpInner);
+
+#[derive(Clone, Copy)]
+#[repr(C, align(8))]
+union SockAddrIpInner {
+    // A struct that covers only the "family" field that both real address
+    // types have in common. We use this only to retrieve the tag before
+    // deciding which of the other two fields is the active one.
+    jt: SockAddrJustTag,
+
+    // Every `SockAddrIpInner` has one of these, with the "family" field
+    // of both serving as the discriminator.
+    v4: SockAddrIpv4,
+    v6: SockAddrIpv6,
+}
+
 #[derive(Clone, Copy, Debug)]
-#[repr(C, u8)]
-pub enum SockAddrIp {
-    V4(SockAddrIpv4),
-    V6(SockAddrIpv6),
+#[repr(C, align(8))]
+struct SockAddrJustTag {
+    family: linux_unsafe::sa_family_t,
 }
 
 impl SockAddrIp {
     pub fn new(host_address: impl Into<IpAddr>, port: u16) -> Self {
         let host_address = host_address.into();
         match host_address {
-            IpAddr::V4(addr) => SockAddrIp::V4(SockAddrIpv4::new(addr, port)),
-            IpAddr::V6(addr) => SockAddrIp::V6(SockAddrIpv6::new(addr, port)),
+            IpAddr::V4(addr) => Self(SockAddrIpInner {
+                v4: SockAddrIpv4::new(addr, port),
+            }),
+            IpAddr::V6(addr) => Self(SockAddrIpInner {
+                v6: SockAddrIpv6::new(addr, port),
+            }),
         }
     }
 
+    /// Get the address family that this address is for.
+    ///
+    /// The result is either [`AF_INET`] or [`AF_INET6`].
     pub const fn address_family(&self) -> linux_unsafe::sa_family_t {
-        match self {
-            SockAddrIp::V4(_) => AF_INET,
-            SockAddrIp::V6(_) => AF_INET6,
+        // Safe because `new` populates either v4 or v6, both of which
+        // have the family field as the first field with compatible
+        // storage and both always initialize it to the appropriate constant.
+        unsafe { self.0.jt.family }
+    }
+
+    /// Get the IP address associated with the socket address.
+    ///
+    /// The result can be either an IPv4 or IPv6 address depending on the
+    /// address family of the socket address.
+    pub const fn host_address(&self) -> IpAddr {
+        match self.address_family() {
+            AF_INET => IpAddr::V4(unsafe { self.0.v4 }.host_address()),
+            AF_INET6 => IpAddr::V6(unsafe { self.0.v6 }.host_address()),
+            _ => unreachable!(),
+        }
+    }
+
+    /// Returns the port number in host (_not_ network) byte order.
+    #[inline(always)]
+    pub const fn port(&self) -> u16 {
+        match self.address_family() {
+            AF_INET => unsafe { self.0.v4 }.port(),
+            AF_INET6 => unsafe { self.0.v6 }.port(),
+            _ => unreachable!(),
+        }
+    }
+}
+
+impl core::fmt::Debug for SockAddrIp {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self.address_family() {
+            AF_INET => unsafe { self.0.v4 }.fmt(f),
+            AF_INET6 => unsafe { self.0.v6 }.fmt(f),
+            _ => unreachable!(),
         }
     }
 }
@@ -297,10 +353,24 @@ impl SockAddrIp {
 /// Represents a host address that can be either an IPv4 address or an IPv6
 /// address chosen dynamically at runtime.
 #[derive(Clone, Copy, Debug)]
-#[repr(C, u8)]
 pub enum IpAddr {
     V4(Ipv4Addr),
     V6(Ipv6Addr),
+}
+
+impl IpAddr {
+    /// Returns the equivalent IPv6 address, either directly (when the source
+    /// is already IPv6) or as an IPv4-mapped-in-IPv6 address.
+    ///
+    /// The Linux IPv6 implementation can support IPv4 too when using a
+    /// mapped address, so using this method can allow the rest of the program
+    /// to use `AF_INET6` exclusively, if desired.
+    pub const fn to_ipv6_mapped(self) -> Ipv6Addr {
+        match self {
+            IpAddr::V4(addr) => addr.to_ipv6_mapped(),
+            IpAddr::V6(addr) => addr,
+        }
+    }
 }
 
 /// Represents the IPv4 address family.
@@ -374,23 +444,25 @@ unsafe impl super::SockAddr for SockAddrIpv6 {
 unsafe impl super::SockAddr for SockAddrIp {
     #[inline(always)]
     unsafe fn sockaddr_raw_const(&self) -> (*const linux_unsafe::void, linux_unsafe::socklen_t) {
-        // We'll take the pointer and size of the payload of the selected variant.
-        // This is okay because SockAddrIp is repr(C) and so the payload behaves
-        // like a C union.
-        match self {
-            SockAddrIp::V4(a) => a.sockaddr_raw_const(),
-            SockAddrIp::V6(a) => a.sockaddr_raw_const(),
+        // Our inner is a union over the possible address types, and we can use
+        // the required "family" field as the tag for our union without needing
+        // any additional storage.
+        match self.address_family() {
+            AF_INET => self.0.v4.sockaddr_raw_const(),
+            AF_INET6 => self.0.v6.sockaddr_raw_const(),
+            _ => unreachable!(), // af field is not publicly exposed so cannot have any other value
         }
     }
 
     #[inline(always)]
     unsafe fn sockaddr_raw_mut(&mut self) -> (*mut linux_unsafe::void, linux_unsafe::socklen_t) {
-        // We'll take the pointer and size of the payload of the selected variant.
-        // This is okay because SockAddrIp is repr(C) and so the payload behaves
-        // like a C union.
-        match self {
-            SockAddrIp::V4(a) => a.sockaddr_raw_mut(),
-            SockAddrIp::V6(a) => a.sockaddr_raw_mut(),
+        // Our inner is a union over the possible address types, and we can use
+        // the required "family" field as the tag for our union without needing
+        // any additional storage.
+        match self.address_family() {
+            AF_INET => self.0.v4.sockaddr_raw_mut(),
+            AF_INET6 => self.0.v6.sockaddr_raw_mut(),
+            _ => unreachable!(), // af field is not publicly exposed so cannot have any other value
         }
     }
 }

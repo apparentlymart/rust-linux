@@ -157,7 +157,7 @@ fn socket_ipv6_bind_tcp() {
 }
 
 #[test]
-fn socket_dynip_bind_tcp() {
+fn socket_dynipv4_bind_tcp() {
     use crate::sockaddr;
     use std::println;
 
@@ -167,6 +167,52 @@ fn socket_dynip_bind_tcp() {
     // Passing an IPv4 address to SockAddrIp::new causes it to return an
     // IPv4 socket address.
     let addr = sockaddr::ip::SockAddrIp::new(sockaddr::ip::Ipv4Addr::LOOPBACK, 0);
+    assert_eq!(addr.address_family(), crate::sockaddr::ip::AF_INET);
+
+    let mut f = File::socket(addr.address_family(), sockaddr::sock_type::SOCK_STREAM, 0)
+        .map_err(|e| e.into_std_io_error())
+        .expect("failed to create socket");
+
+    println!("binding to {:?}", addr);
+    f.bind(addr)
+        .map_err(|e| e.into_std_io_error())
+        .expect("failed to bind socket");
+}
+
+#[test]
+fn socket_dynipv6_bind_tcp() {
+    use crate::sockaddr;
+    use std::println;
+
+    // Using a dynamically-assigned loopback port to minimize the risk of
+    // collisions when running these tests on systems that probably have
+    // other network software running.
+    // Passing an IPv6 address to SockAddrIp::new causes it to return an
+    // IPv6 socket address.
+    let addr = sockaddr::ip::SockAddrIp::new(sockaddr::ip::Ipv6Addr::LOOPBACK, 0);
+    assert_eq!(addr.address_family(), crate::sockaddr::ip::AF_INET6);
+
+    let mut f = File::socket(addr.address_family(), sockaddr::sock_type::SOCK_STREAM, 0)
+        .map_err(|e| e.into_std_io_error())
+        .expect("failed to create socket");
+
+    println!("binding to {:?}", addr);
+    f.bind(addr)
+        .map_err(|e| e.into_std_io_error())
+        .expect("failed to bind socket");
+}
+#[test]
+fn socket_dynipv6mappedv4_bind_tcp() {
+    use crate::sockaddr;
+    use std::println;
+
+    // Using a dynamically-assigned loopback port to minimize the risk of
+    // collisions when running these tests on systems that probably have
+    // other network software running.
+    // This is the IPv4 loopback address represented as an IPv6 address
+    // using the "mapped" addressing scheme.
+    let addr = sockaddr::ip::SockAddrIp::new(sockaddr::ip::Ipv4Addr::LOOPBACK.to_ipv6_mapped(), 0);
+    assert_eq!(addr.address_family(), crate::sockaddr::ip::AF_INET6);
 
     let mut f = File::socket(addr.address_family(), sockaddr::sock_type::SOCK_STREAM, 0)
         .map_err(|e| e.into_std_io_error())
