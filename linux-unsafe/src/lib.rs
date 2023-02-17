@@ -45,6 +45,11 @@
 //! through both the standard library and though direct system calls.
 #![no_std]
 
+static_assertions::assert_cfg!(
+    target_os = "linux",
+    "The linux-unsafe crate targets the Linux system call interface, and so is not compatible with any other operating system.",
+);
+
 mod funcs;
 mod types;
 
