@@ -34,6 +34,9 @@ pub mod seek;
 pub mod fd;
 pub use fd::{File, OpenOptions, OPEN_READ_ONLY, OPEN_READ_WRITE, OPEN_WRITE_ONLY};
 
+/// For interacting with tty devices.
+pub mod tty;
+
 /// Socket address manipulation.
 pub mod sockaddr;
 

@@ -8,6 +8,7 @@ use core::ffi::CStr;
 use core::mem::MaybeUninit;
 
 pub mod fcntl;
+pub mod ioctl;
 pub mod sockopt;
 
 /// An encapsulated Linux file descriptor.
@@ -287,6 +288,54 @@ impl File {
         arg: impl AsRawV,
     ) -> Result<linux_unsafe::int> {
         let result = unsafe { linux_unsafe::fcntl(self.fd, cmd, arg) };
+        result.map(|v| v as _).map_err(|e| e.into())
+    }
+
+    /// Safe wrapper for the `ioctl` system call.
+    ///
+    /// The safety of this wrapper relies on being passed only correct
+    /// implementations of [`ioctl::IoctlReq`], some of which are predefined
+    /// as constants elsewhere in this crate, while others will appear in
+    /// device-specific support crates.
+    ///
+    /// The type of the argument depends on which `request` you choose.
+    /// Some requests expect no argument, in which case you should pass
+    /// `()`.
+    ///
+    /// **Note:** The safety of this wrapper depends on the fact that no
+    /// two drivers in Linux use the same ioctl request number while expecting
+    /// arguments of different types. That is true today on mainline kernel
+    /// releases, but may not necessarily be true on kernels with out-of-tree
+    /// drivers, or other similar deviations from the usual standards.
+    #[inline]
+    pub fn ioctl<'a, Req: ioctl::IoctlReq<'a>>(
+        &'a mut self,
+        request: Req,
+        arg: Req::ExtArg,
+    ) -> Result<Req::Result> {
+        // Some ioctl requests need some temporary memory space for the
+        // kernel to write data into. It's the request implementation's
+        // responsibility to initialize it if needed, but we'll at least
+        // zero it so that any unused padding will start as zero.
+        let mut temp_mem: MaybeUninit<Req::TempMem> = MaybeUninit::zeroed();
+        let (raw_req, raw_arg) = request.prepare_ioctl_args(&arg, &mut temp_mem);
+        let raw_result = unsafe { self.ioctl_raw(raw_req, raw_arg) };
+        raw_result.map(|r| request.prepare_ioctl_result(r, &arg, &temp_mem))
+    }
+
+    /// Direct wrapper around the raw `ioctl` system call.
+    ///
+    /// This system call is particularly unsafe because it interprets its
+    /// last argument differently depending on the value of `request`.
+    /// [`Self::ioctl`] provides a slightly safer abstraction around this
+    /// operation.
+    #[inline]
+    pub unsafe fn ioctl_raw(
+        &mut self,
+        request: linux_unsafe::ulong,
+        arg: impl AsRawV,
+    ) -> Result<linux_unsafe::int> {
+        let result = unsafe { linux_unsafe::ioctl(self.fd, request, arg) };
         result.map(|v| v as _).map_err(|e| e.into())
     }
 
