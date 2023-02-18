@@ -121,10 +121,13 @@ fn socket_ipv4_bind_tcp() {
     use crate::socket;
     use std::println;
 
-    // AF_INET + SOCK_STREAM is implicitly TCP, without explicitly naming it
-    let f = File::socket(socket::ip::AF_INET, socket::sock_type::SOCK_STREAM, 0)
-        .map_err(|e| e.into_std_io_error())
-        .expect("failed to create socket");
+    let f = File::socket(
+        socket::ip::AF_INET,
+        socket::sock_type::SOCK_STREAM,
+        socket::ip::IPPROTO_TCP,
+    )
+    .map_err(|e| e.into_std_io_error())
+    .expect("failed to create socket");
 
     // Using a dynamically-assigned loopback port to minimize the risk of
     // collisions when running these tests on systems that probably have
@@ -134,6 +137,13 @@ fn socket_ipv4_bind_tcp() {
     f.bind(addr)
         .map_err(|e| e.into_std_io_error())
         .expect("failed to bind socket");
+
+    // While we're here we'll also make sure we can call a TCP-specific
+    // ioctl request on this file, since File::socket should've set that up.
+    f.ioctl(crate::socket::ip::tcp::SIOCATMARK, ())
+        .map_err(|e| e.into_std_io_error())
+        .expect("failed to ioctl SIOCATMARK");
+    // (We don't actually care about the result, only that it wasn't an error)
 }
 
 #[test]
@@ -141,10 +151,13 @@ fn socket_ipv6_bind_tcp() {
     use crate::socket;
     use std::println;
 
-    // AF_INET6 + SOCK_STREAM is implicitly TCP, without explicitly naming it
-    let f = File::socket(socket::ip::AF_INET6, socket::sock_type::SOCK_STREAM, 0)
-        .map_err(|e| e.into_std_io_error())
-        .expect("failed to create socket");
+    let f = File::socket(
+        socket::ip::AF_INET6,
+        socket::sock_type::SOCK_STREAM,
+        socket::ip::IPPROTO_TCP,
+    )
+    .map_err(|e| e.into_std_io_error())
+    .expect("failed to create socket");
 
     // Using a dynamically-assigned loopback port to minimize the risk of
     // collisions when running these tests on systems that probably have
@@ -154,6 +167,13 @@ fn socket_ipv6_bind_tcp() {
     f.bind(addr)
         .map_err(|e| e.into_std_io_error())
         .expect("failed to bind socket");
+
+    // While we're here we'll also make sure we can call a TCP-specific
+    // ioctl request on this file, since File::socket should've set that up.
+    f.ioctl(crate::socket::ip::tcp::SIOCATMARK, ())
+        .map_err(|e| e.into_std_io_error())
+        .expect("failed to ioctl SIOCATMARK");
+    // (We don't actually care about the result, only that it wasn't an error)
 }
 
 #[test]
@@ -169,9 +189,13 @@ fn socket_dynipv4_bind_tcp() {
     let addr = socket::ip::SockAddrIp::new(socket::ip::Ipv4Addr::LOOPBACK, 0);
     assert_eq!(addr.address_family(), crate::socket::ip::AF_INET);
 
-    let f = File::socket(addr.address_family(), socket::sock_type::SOCK_STREAM, 0)
-        .map_err(|e| e.into_std_io_error())
-        .expect("failed to create socket");
+    let f = File::socket(
+        addr.address_family(),
+        socket::sock_type::SOCK_STREAM,
+        socket::ip::IPPROTO_TCP,
+    )
+    .map_err(|e| e.into_std_io_error())
+    .expect("failed to create socket");
 
     println!("binding to {:?}", addr);
     f.bind(addr)
@@ -192,15 +216,20 @@ fn socket_dynipv6_bind_tcp() {
     let addr = socket::ip::SockAddrIp::new(socket::ip::Ipv6Addr::LOOPBACK, 0);
     assert_eq!(addr.address_family(), crate::socket::ip::AF_INET6);
 
-    let f = File::socket(addr.address_family(), socket::sock_type::SOCK_STREAM, 0)
-        .map_err(|e| e.into_std_io_error())
-        .expect("failed to create socket");
+    let f = File::socket(
+        addr.address_family(),
+        socket::sock_type::SOCK_STREAM,
+        socket::ip::IPPROTO_TCP,
+    )
+    .map_err(|e| e.into_std_io_error())
+    .expect("failed to create socket");
 
     println!("binding to {:?}", addr);
     f.bind(addr)
         .map_err(|e| e.into_std_io_error())
         .expect("failed to bind socket");
 }
+
 #[test]
 fn socket_dynipv6mappedv4_bind_tcp() {
     use crate::socket;
@@ -214,9 +243,13 @@ fn socket_dynipv6mappedv4_bind_tcp() {
     let addr = socket::ip::SockAddrIp::new(socket::ip::Ipv4Addr::LOOPBACK.to_ipv6_mapped(), 0);
     assert_eq!(addr.address_family(), crate::socket::ip::AF_INET6);
 
-    let f = File::socket(addr.address_family(), socket::sock_type::SOCK_STREAM, 0)
-        .map_err(|e| e.into_std_io_error())
-        .expect("failed to create socket");
+    let f = File::socket(
+        addr.address_family(),
+        socket::sock_type::SOCK_STREAM,
+        socket::ip::IPPROTO_TCP,
+    )
+    .map_err(|e| e.into_std_io_error())
+    .expect("failed to create socket");
 
     println!("binding to {:?}", addr);
     f.bind(addr)
@@ -229,9 +262,13 @@ fn socket_getsockopt() {
     use crate::socket;
     use std::println;
 
-    let f = File::socket(socket::ip::AF_INET, socket::sock_type::SOCK_STREAM, 0)
-        .map_err(|e| e.into_std_io_error())
-        .expect("failed to create socket");
+    let f = File::socket(
+        socket::ip::AF_INET,
+        socket::sock_type::SOCK_STREAM,
+        socket::ip::IPPROTO_TCP,
+    )
+    .map_err(|e| e.into_std_io_error())
+    .expect("failed to create socket");
 
     let addr = socket::ip::SockAddrIpv4::new(socket::ip::Ipv4Addr::LOOPBACK, 0);
     println!("binding to {:?}", addr);
@@ -267,9 +304,13 @@ fn socket_setsockopt() {
     use crate::socket;
     use std::println;
 
-    let f = File::socket(socket::ip::AF_INET, socket::sock_type::SOCK_STREAM, 0)
-        .map_err(|e| e.into_std_io_error())
-        .expect("failed to create socket");
+    let f = File::socket(
+        socket::ip::AF_INET,
+        socket::sock_type::SOCK_STREAM,
+        socket::ip::IPPROTO_TCP,
+    )
+    .map_err(|e| e.into_std_io_error())
+    .expect("failed to create socket");
 
     let addr = socket::ip::SockAddrIpv4::new(socket::ip::Ipv4Addr::LOOPBACK, 0);
     println!("binding to {:?}", addr);

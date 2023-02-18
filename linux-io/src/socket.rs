@@ -30,3 +30,76 @@ pub unsafe trait SockAddr {
     /// with a mutable borrow.
     unsafe fn sockaddr_raw_mut(&mut self) -> (*mut linux_unsafe::void, linux_unsafe::socklen_t);
 }
+
+/// Represents a socket protocol that is compatible with sockets belonging to
+/// the domain/family `FAMILY`.
+///
+/// This trait allows [`super::File::socket`] to return a file of the
+/// appropriate device type for the selected protocol so that the relevant
+/// socket `ioctl` requests will be supported on its result.
+pub trait SocketProtocol {
+    type Device: crate::fd::ioctl::IoDevice;
+
+    fn raw_protocol_num(&self) -> linux_unsafe::int;
+}
+
+/// Builds a reasonable default implementation of [`SocketProtocol`] with
+/// a fixed protocol number and device type.
+///
+/// **Safety:** Caller must ensure that the specified device marker type
+/// is suitable for the type of socket the kernel will return when requesting
+/// this protocol. This works in conjunction with the safety rules for
+/// implementing ioctl requests on device types; the designated device should
+/// only have ioctl request constants that can be called against a file
+/// descriptor of this protocol without the risk of memory corruption caused
+/// by an incorrect argument type.
+#[inline(always)]
+pub const unsafe fn socket_protocol<Device: crate::fd::ioctl::IoDevice>(
+    num: linux_unsafe::int,
+) -> SocketProtocolFixed<Device> {
+    SocketProtocolFixed::numbered(num)
+}
+
+/// A reasonable default implementation of [`SocketProtocol`] with a fixed
+/// protocol number and device type.
+///
+/// This is the return type of [`socket_protocol`].
+#[repr(transparent)]
+pub struct SocketProtocolFixed<Device: crate::fd::ioctl::IoDevice> {
+    num: linux_unsafe::int,
+    _phantom: core::marker::PhantomData<Device>,
+}
+
+/// A convenience implementation of [`SocketProtocol`] for simple protocols
+/// that belong to only a single family and have a fixed protocol number.
+impl<Device: crate::fd::ioctl::IoDevice> SocketProtocolFixed<Device> {
+    #[inline(always)]
+    pub(crate) const unsafe fn numbered(num: linux_unsafe::int) -> Self {
+        // The value of a `SocketProtocolFixed` is always just its protocol
+        // number directly, making it have identical layout to the raw
+        // protocol argument on the `socket` system call.
+        Self {
+            num,
+            _phantom: core::marker::PhantomData,
+        }
+    }
+}
+
+impl<Device: crate::fd::ioctl::IoDevice> SocketProtocol for SocketProtocolFixed<Device> {
+    type Device = Device;
+
+    #[inline(always)]
+    fn raw_protocol_num(&self) -> linux_unsafe::int {
+        self.num
+    }
+}
+
+/// Device type marker for [`crate::File`] instances that represent sockets.
+///
+/// In practice there should not typically be a `File<SocketDevice>` directly,
+/// but instead should use a protocol-specific device type that also has a
+/// blanket impl to make all of the `SocketDevice` ioctl requests available
+/// too.
+pub struct SocketDevice;
+
+impl crate::fd::ioctl::IoDevice for SocketDevice {}

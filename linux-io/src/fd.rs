@@ -7,6 +7,8 @@ use core::cell::UnsafeCell;
 use core::ffi::CStr;
 use core::mem::MaybeUninit;
 
+use self::ioctl::SubDevice;
+
 pub mod fcntl;
 pub mod ioctl;
 pub mod sockopt;
@@ -93,18 +95,39 @@ impl File<()> {
 
     /// Create a new socket using the `socket` system call.
     ///
-    /// FIXME: This should really return a file with a Device type automatically
-    /// associated with it, so that the protocol-specific ioctls will be
-    /// available without any unsafe assertions.
+    /// The protocol is specifed as a special typed constant which carries
+    /// both the protocol number expected by the kernel and the device type
+    /// to use for the returned file, so the result can accept `ioctl`
+    /// requests that are defined for that specific protocol.
     #[inline]
-    pub fn socket(
+    pub fn socket<Protocol: super::socket::SocketProtocol>(
+        domain: linux_unsafe::sa_family_t,
+        typ: crate::socket::sock_type,
+        protocol: Protocol,
+    ) -> Result<File<Protocol::Device>> {
+        let result = unsafe { linux_unsafe::socket(domain, typ, protocol.raw_protocol_num()) };
+        result
+            .map(|fd| unsafe { File::from_raw_fd(fd as linux_unsafe::int) })
+            .map_err(|e| e.into())
+    }
+
+    /// Create a new socket using the `socket` system call without automatically
+    /// assigning a device type based on the protocol.
+    ///
+    /// This is similar to [`Self::socket`] but allows specifying any arbitrary
+    /// protocol number without needing a special implementation of
+    /// [`super::socket::SocketProtocol`]. However, that means that the result
+    /// will be typed only as a generic socket and so will not accept any
+    /// protocol-specific `ioctl` requests.
+    #[inline]
+    pub fn socket_raw<Protocol: super::socket::SocketProtocol>(
         domain: linux_unsafe::sa_family_t,
         typ: crate::socket::sock_type,
         protocol: linux_unsafe::int,
-    ) -> Result<Self> {
+    ) -> Result<File<crate::socket::SocketDevice>> {
         let result = unsafe { linux_unsafe::socket(domain, typ, protocol) };
         result
-            .map(|fd| unsafe { Self::from_raw_fd(fd as linux_unsafe::int) })
+            .map(|fd| unsafe { File::from_raw_fd(fd as linux_unsafe::int) })
             .map_err(|e| e.into())
     }
 }
@@ -476,11 +499,14 @@ impl<Device: ioctl::IoDevice> File<Device> {
     /// Some requests expect no argument, in which case you should pass
     /// `()`.
     #[inline]
-    pub fn ioctl<'a, Req: ioctl::IoctlReq<'a, Device>>(
+    pub fn ioctl<'a, ReqDevice: ioctl::IoDevice, Req: ioctl::IoctlReq<'a, ReqDevice>>(
         &'a self,
         request: Req,
         arg: Req::ExtArg,
-    ) -> Result<Req::Result> {
+    ) -> Result<Req::Result>
+    where
+        Device: SubDevice<ReqDevice>,
+    {
         // Some ioctl requests need some temporary memory space for the
         // kernel to write data into. It's the request implementation's
         // responsibility to initialize it if needed, but we'll at least

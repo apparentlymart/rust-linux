@@ -23,7 +23,38 @@ use linux_unsafe::{int, ulong};
 /// Implementations of this type should typically be zero-sized types, because
 /// they are used only as markers for annotating `File` objects using
 /// [`super::File::to_device`].
+///
+/// This is just a marker trait used to check type safety for
+/// [`super::File::ioctl`]; it has no behavior of its own and merely permits
+/// the safe abstraction to block trying to use ioctl requests intended for
+/// another device type which might therefore cause memory corruption if the
+/// argument type is incorrect.
 pub trait IoDevice {}
+
+/// Implemented by [`IoDevice`] implementations that are "sub-devices" of
+/// another device, specified as type parameter `Parent`.
+///
+/// This is just a marker trait used to check type safety for
+/// [`super::File::ioctl`]; it has no behavior of its own and merely permits
+/// the safe abstraction to send requests that were intended for the parent
+/// device type to files representing the implementer (the "child").
+///
+/// Devices don't actually need to form a strict tree. It is fine for a device
+/// type to have multiple parents, or for the structure implied by this trait
+/// to not resemble a tree at all, as long as the safety guarantees are met.
+/// If A is parent of B and B is parent of C then A is not _automatically_
+/// parent of C unless also explicitly implemented.
+///
+/// **Safety:** The implementer must be able to safely accept all of the
+/// `ioctl` requests of `Parent` without compromising memory safety. The
+/// parent requests do not necessarily need to _succeed_; it is sufficient
+/// for them to fail safely without making any use of the given argument.
+pub unsafe trait SubDevice<Parent: IoDevice>: IoDevice {}
+
+/// Any `IoDevice` type can by definition safely accept its own `ioctl` requests,
+/// assuming that those requests are themselves defined per the safety
+/// requirements of [`IoctlReq`].
+unsafe impl<T: IoDevice> SubDevice<T> for T {}
 
 /// Represents a particular request that can be issue with the `ioctl` system call.
 ///

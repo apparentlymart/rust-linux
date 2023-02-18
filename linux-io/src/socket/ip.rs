@@ -379,9 +379,11 @@ pub const AF_INET: linux_unsafe::sa_family_t = 2;
 /// Represents the IPv6 address family.
 pub const AF_INET6: linux_unsafe::sa_family_t = 10;
 
+pub const IPPROTO_TCP: super::SocketProtocolFixed<tcp::TcpSocketDevice> =
+    unsafe { super::socket_protocol(6) };
+
 pub const IPPROTO_ICMP: linux_unsafe::int = 1;
 pub const IPPROTO_IGMP: linux_unsafe::int = 4;
-pub const IPPROTO_TCP: linux_unsafe::int = 6;
 pub const IPPROTO_EGP: linux_unsafe::int = 8;
 pub const IPPROTO_PUP: linux_unsafe::int = 12;
 pub const IPPROTO_UDP: linux_unsafe::int = 17;
@@ -541,3 +543,20 @@ impl From<std::net::IpAddr> for IpAddr {
         Self::from_std(value)
     }
 }
+
+/// Device type marker for [`crate::File`] instances that represent IPv4 sockets.
+#[derive(Clone, Copy)]
+pub struct Ipv4SocketDevice;
+
+impl crate::fd::ioctl::IoDevice for Ipv4SocketDevice {}
+unsafe impl crate::fd::ioctl::SubDevice<super::SocketDevice> for Ipv4SocketDevice {}
+
+/// Device type marker for [`crate::File`] instances that represent IPv4 sockets.
+#[derive(Clone, Copy)]
+pub struct Ipv6SocketDevice;
+
+impl crate::fd::ioctl::IoDevice for Ipv6SocketDevice {}
+unsafe impl crate::fd::ioctl::SubDevice<super::SocketDevice> for Ipv6SocketDevice {}
+
+/// Extra types and constants for working with TCP sockets.
+pub mod tcp;
