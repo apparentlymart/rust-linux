@@ -37,8 +37,8 @@ pub use fd::{File, OpenOptions, OPEN_READ_ONLY, OPEN_READ_WRITE, OPEN_WRITE_ONLY
 /// For interacting with tty devices.
 pub mod tty;
 
-/// Socket address manipulation.
-pub mod sockaddr;
+/// Socket address manipulation, socket device ioctls, etc.
+pub mod socket;
 
 #[cfg(test)]
 mod tests;

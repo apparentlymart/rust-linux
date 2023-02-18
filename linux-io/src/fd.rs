@@ -99,7 +99,7 @@ impl File<()> {
     #[inline]
     pub fn socket(
         domain: linux_unsafe::sa_family_t,
-        typ: crate::sockaddr::sock_type,
+        typ: crate::socket::sock_type,
         protocol: linux_unsafe::int,
     ) -> Result<Self> {
         let result = unsafe { linux_unsafe::socket(domain, typ, protocol) };
@@ -345,7 +345,7 @@ impl<Device> File<Device> {
 
     /// Bind an address to a socket.
     #[inline]
-    pub fn bind(&self, addr: impl crate::sockaddr::SockAddr) -> Result<()> {
+    pub fn bind(&self, addr: impl crate::socket::SockAddr) -> Result<()> {
         let (raw_ptr, raw_len) = unsafe { addr.sockaddr_raw_const() };
         unsafe { self.bind_raw(raw_ptr, raw_len) }
     }
@@ -363,7 +363,7 @@ impl<Device> File<Device> {
 
     /// Initiate a connection on a socket.
     #[inline]
-    pub fn connect(&self, addr: impl crate::sockaddr::SockAddr) -> Result<()> {
+    pub fn connect(&self, addr: impl crate::socket::SockAddr) -> Result<()> {
         let (raw_ptr, raw_len) = unsafe { addr.sockaddr_raw_const() };
         unsafe { self.connect_raw(raw_ptr, raw_len) }
     }

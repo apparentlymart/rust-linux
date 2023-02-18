@@ -118,18 +118,18 @@ fn fcntl_dup() {
 
 #[test]
 fn socket_ipv4_bind_tcp() {
-    use crate::sockaddr;
+    use crate::socket;
     use std::println;
 
     // AF_INET + SOCK_STREAM is implicitly TCP, without explicitly naming it
-    let f = File::socket(sockaddr::ip::AF_INET, sockaddr::sock_type::SOCK_STREAM, 0)
+    let f = File::socket(socket::ip::AF_INET, socket::sock_type::SOCK_STREAM, 0)
         .map_err(|e| e.into_std_io_error())
         .expect("failed to create socket");
 
     // Using a dynamically-assigned loopback port to minimize the risk of
     // collisions when running these tests on systems that probably have
     // other network software running.
-    let addr = sockaddr::ip::SockAddrIpv4::new(sockaddr::ip::Ipv4Addr::LOOPBACK, 0);
+    let addr = socket::ip::SockAddrIpv4::new(socket::ip::Ipv4Addr::LOOPBACK, 0);
     println!("binding to {:?}", addr);
     f.bind(addr)
         .map_err(|e| e.into_std_io_error())
@@ -138,18 +138,18 @@ fn socket_ipv4_bind_tcp() {
 
 #[test]
 fn socket_ipv6_bind_tcp() {
-    use crate::sockaddr;
+    use crate::socket;
     use std::println;
 
     // AF_INET6 + SOCK_STREAM is implicitly TCP, without explicitly naming it
-    let f = File::socket(sockaddr::ip::AF_INET6, sockaddr::sock_type::SOCK_STREAM, 0)
+    let f = File::socket(socket::ip::AF_INET6, socket::sock_type::SOCK_STREAM, 0)
         .map_err(|e| e.into_std_io_error())
         .expect("failed to create socket");
 
     // Using a dynamically-assigned loopback port to minimize the risk of
     // collisions when running these tests on systems that probably have
     // other network software running.
-    let addr = sockaddr::ip::SockAddrIpv6::new(sockaddr::ip::Ipv6Addr::LOOPBACK, 0);
+    let addr = socket::ip::SockAddrIpv6::new(socket::ip::Ipv6Addr::LOOPBACK, 0);
     println!("binding to {:?}", addr);
     f.bind(addr)
         .map_err(|e| e.into_std_io_error())
@@ -158,7 +158,7 @@ fn socket_ipv6_bind_tcp() {
 
 #[test]
 fn socket_dynipv4_bind_tcp() {
-    use crate::sockaddr;
+    use crate::socket;
     use std::println;
 
     // Using a dynamically-assigned loopback port to minimize the risk of
@@ -166,10 +166,10 @@ fn socket_dynipv4_bind_tcp() {
     // other network software running.
     // Passing an IPv4 address to SockAddrIp::new causes it to return an
     // IPv4 socket address.
-    let addr = sockaddr::ip::SockAddrIp::new(sockaddr::ip::Ipv4Addr::LOOPBACK, 0);
-    assert_eq!(addr.address_family(), crate::sockaddr::ip::AF_INET);
+    let addr = socket::ip::SockAddrIp::new(socket::ip::Ipv4Addr::LOOPBACK, 0);
+    assert_eq!(addr.address_family(), crate::socket::ip::AF_INET);
 
-    let f = File::socket(addr.address_family(), sockaddr::sock_type::SOCK_STREAM, 0)
+    let f = File::socket(addr.address_family(), socket::sock_type::SOCK_STREAM, 0)
         .map_err(|e| e.into_std_io_error())
         .expect("failed to create socket");
 
@@ -181,7 +181,7 @@ fn socket_dynipv4_bind_tcp() {
 
 #[test]
 fn socket_dynipv6_bind_tcp() {
-    use crate::sockaddr;
+    use crate::socket;
     use std::println;
 
     // Using a dynamically-assigned loopback port to minimize the risk of
@@ -189,10 +189,10 @@ fn socket_dynipv6_bind_tcp() {
     // other network software running.
     // Passing an IPv6 address to SockAddrIp::new causes it to return an
     // IPv6 socket address.
-    let addr = sockaddr::ip::SockAddrIp::new(sockaddr::ip::Ipv6Addr::LOOPBACK, 0);
-    assert_eq!(addr.address_family(), crate::sockaddr::ip::AF_INET6);
+    let addr = socket::ip::SockAddrIp::new(socket::ip::Ipv6Addr::LOOPBACK, 0);
+    assert_eq!(addr.address_family(), crate::socket::ip::AF_INET6);
 
-    let f = File::socket(addr.address_family(), sockaddr::sock_type::SOCK_STREAM, 0)
+    let f = File::socket(addr.address_family(), socket::sock_type::SOCK_STREAM, 0)
         .map_err(|e| e.into_std_io_error())
         .expect("failed to create socket");
 
@@ -203,7 +203,7 @@ fn socket_dynipv6_bind_tcp() {
 }
 #[test]
 fn socket_dynipv6mappedv4_bind_tcp() {
-    use crate::sockaddr;
+    use crate::socket;
     use std::println;
 
     // Using a dynamically-assigned loopback port to minimize the risk of
@@ -211,10 +211,10 @@ fn socket_dynipv6mappedv4_bind_tcp() {
     // other network software running.
     // This is the IPv4 loopback address represented as an IPv6 address
     // using the "mapped" addressing scheme.
-    let addr = sockaddr::ip::SockAddrIp::new(sockaddr::ip::Ipv4Addr::LOOPBACK.to_ipv6_mapped(), 0);
-    assert_eq!(addr.address_family(), crate::sockaddr::ip::AF_INET6);
+    let addr = socket::ip::SockAddrIp::new(socket::ip::Ipv4Addr::LOOPBACK.to_ipv6_mapped(), 0);
+    assert_eq!(addr.address_family(), crate::socket::ip::AF_INET6);
 
-    let f = File::socket(addr.address_family(), sockaddr::sock_type::SOCK_STREAM, 0)
+    let f = File::socket(addr.address_family(), socket::sock_type::SOCK_STREAM, 0)
         .map_err(|e| e.into_std_io_error())
         .expect("failed to create socket");
 
@@ -226,14 +226,14 @@ fn socket_dynipv6mappedv4_bind_tcp() {
 
 #[test]
 fn socket_getsockopt() {
-    use crate::sockaddr;
+    use crate::socket;
     use std::println;
 
-    let f = File::socket(sockaddr::ip::AF_INET, sockaddr::sock_type::SOCK_STREAM, 0)
+    let f = File::socket(socket::ip::AF_INET, socket::sock_type::SOCK_STREAM, 0)
         .map_err(|e| e.into_std_io_error())
         .expect("failed to create socket");
 
-    let addr = sockaddr::ip::SockAddrIpv4::new(sockaddr::ip::Ipv4Addr::LOOPBACK, 0);
+    let addr = socket::ip::SockAddrIpv4::new(socket::ip::Ipv4Addr::LOOPBACK, 0);
     println!("binding to {:?}", addr);
     f.bind(addr)
         .map_err(|e| e.into_std_io_error())
@@ -264,14 +264,14 @@ fn socket_getsockopt() {
 
 #[test]
 fn socket_setsockopt() {
-    use crate::sockaddr;
+    use crate::socket;
     use std::println;
 
-    let f = File::socket(sockaddr::ip::AF_INET, sockaddr::sock_type::SOCK_STREAM, 0)
+    let f = File::socket(socket::ip::AF_INET, socket::sock_type::SOCK_STREAM, 0)
         .map_err(|e| e.into_std_io_error())
         .expect("failed to create socket");
 
-    let addr = sockaddr::ip::SockAddrIpv4::new(sockaddr::ip::Ipv4Addr::LOOPBACK, 0);
+    let addr = socket::ip::SockAddrIpv4::new(socket::ip::Ipv4Addr::LOOPBACK, 0);
     println!("binding to {:?}", addr);
     f.bind(addr)
         .map_err(|e| e.into_std_io_error())
