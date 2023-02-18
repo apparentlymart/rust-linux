@@ -8,7 +8,7 @@ fn main() {
     // Wrap the stdout handle -- fd 1 -- in a File object.
     // (Safety: we are not using std and so nothing else thinks it owns this fd)
     let mut stdout = unsafe { File::from_raw_fd(1) };
-    let mut stdin = unsafe { File::from_raw_fd(0) };
+    let stdin = unsafe { File::from_raw_fd(0) };
 
     if writeln!(stdout, "hello world").is_err() {
         unsafe { linux_unsafe::exit(1) };

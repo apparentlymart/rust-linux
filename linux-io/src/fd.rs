@@ -168,7 +168,7 @@ impl File {
     /// Read some bytes from the file into the given buffer, returning the
     /// number of bytes that were read.
     #[inline(always)]
-    pub fn read(&mut self, buf: &mut [u8]) -> Result<usize> {
+    pub fn read(&self, buf: &mut [u8]) -> Result<usize> {
         let buf_ptr = buf.as_mut_ptr() as *mut linux_unsafe::void;
         let buf_size = buf.len();
         unsafe { self.read_raw(buf_ptr, buf_size) }.map(|v| v as _)
@@ -180,7 +180,7 @@ impl File {
     /// Use [`File::read`] as a safe alternative.
     #[inline]
     pub unsafe fn read_raw(
-        &mut self,
+        &self,
         buf: *mut linux_unsafe::void,
         count: linux_unsafe::size_t,
     ) -> Result<linux_unsafe::size_t> {
@@ -190,7 +190,7 @@ impl File {
 
     /// Change the current read/write position of the file.
     #[inline]
-    pub fn seek(&mut self, pos: impl Into<SeekFrom>) -> Result<u64> {
+    pub fn seek(&self, pos: impl Into<SeekFrom>) -> Result<u64> {
         let pos = pos.into();
         let raw_offs = pos.for_raw_offset();
 
@@ -229,7 +229,7 @@ impl File {
     /// Tell the kernel to flush any in-memory buffers and caches for the
     /// file.
     #[inline]
-    pub fn sync(&mut self) -> Result<()> {
+    pub fn sync(&self) -> Result<()> {
         let result = unsafe { linux_unsafe::fsync(self.fd) };
         result.map(|_| ()).map_err(|e| e.into())
     }
@@ -237,7 +237,7 @@ impl File {
     /// Write bytes from the given buffer to the file, returning how many bytes
     /// were written.
     #[inline(always)]
-    pub fn write(&mut self, buf: &[u8]) -> Result<usize> {
+    pub fn write(&self, buf: &[u8]) -> Result<usize> {
         let buf_ptr = buf.as_ptr() as *const linux_unsafe::void;
         let buf_size = buf.len();
         unsafe { self.write_raw(buf_ptr, buf_size) }.map(|v| v as _)
@@ -249,7 +249,7 @@ impl File {
     /// Use [`File::write`] as a safe alternative.
     #[inline]
     pub unsafe fn write_raw(
-        &mut self,
+        &self,
         buf: *const linux_unsafe::void,
         count: linux_unsafe::size_t,
     ) -> Result<linux_unsafe::size_t> {
@@ -266,7 +266,7 @@ impl File {
     /// The type of the argument depends on which `cmd` you choose.
     #[inline]
     pub fn fcntl<'a, Cmd: fcntl::FcntlCmd<'a>>(
-        &'a mut self,
+        &'a self,
         cmd: Cmd,
         arg: Cmd::ExtArg,
     ) -> Result<Cmd::Result> {
@@ -283,7 +283,7 @@ impl File {
     /// operation.
     #[inline]
     pub unsafe fn fcntl_raw(
-        &mut self,
+        &self,
         cmd: linux_unsafe::int,
         arg: impl AsRawV,
     ) -> Result<linux_unsafe::int> {
@@ -309,7 +309,7 @@ impl File {
     /// drivers, or other similar deviations from the usual standards.
     #[inline]
     pub fn ioctl<'a, Req: ioctl::IoctlReq<'a>>(
-        &'a mut self,
+        &'a self,
         request: Req,
         arg: Req::ExtArg,
     ) -> Result<Req::Result> {
@@ -331,7 +331,7 @@ impl File {
     /// operation.
     #[inline]
     pub unsafe fn ioctl_raw(
-        &mut self,
+        &self,
         request: linux_unsafe::ulong,
         arg: impl AsRawV,
     ) -> Result<linux_unsafe::int> {
@@ -341,7 +341,7 @@ impl File {
 
     /// Bind an address to a socket.
     #[inline]
-    pub fn bind(&mut self, addr: impl crate::sockaddr::SockAddr) -> Result<()> {
+    pub fn bind(&self, addr: impl crate::sockaddr::SockAddr) -> Result<()> {
         let (raw_ptr, raw_len) = unsafe { addr.sockaddr_raw_const() };
         unsafe { self.bind_raw(raw_ptr, raw_len) }
     }
@@ -349,7 +349,7 @@ impl File {
     /// Bind an address to a socket using a raw pointer.
     #[inline]
     pub unsafe fn bind_raw(
-        &mut self,
+        &self,
         addr: *const linux_unsafe::void,
         addrlen: linux_unsafe::socklen_t,
     ) -> Result<()> {
@@ -359,7 +359,7 @@ impl File {
 
     /// Initiate a connection on a socket.
     #[inline]
-    pub fn connect(&mut self, addr: impl crate::sockaddr::SockAddr) -> Result<()> {
+    pub fn connect(&self, addr: impl crate::sockaddr::SockAddr) -> Result<()> {
         let (raw_ptr, raw_len) = unsafe { addr.sockaddr_raw_const() };
         unsafe { self.connect_raw(raw_ptr, raw_len) }
     }
@@ -367,7 +367,7 @@ impl File {
     /// Initiate a connection on a socket using a raw pointer.
     #[inline]
     pub unsafe fn connect_raw(
-        &mut self,
+        &self,
         addr: *const linux_unsafe::void,
         addrlen: linux_unsafe::socklen_t,
     ) -> Result<()> {
@@ -377,7 +377,7 @@ impl File {
 
     /// Listen for incoming connections on this socket.
     #[inline]
-    pub fn listen(&mut self, backlog: linux_unsafe::int) -> Result<()> {
+    pub fn listen(&self, backlog: linux_unsafe::int) -> Result<()> {
         let result = unsafe { linux_unsafe::listen(self.fd, backlog) };
         result.map(|_| ()).map_err(|e| e.into())
     }
@@ -431,7 +431,7 @@ impl File {
     /// and optname for the underlying call and the type of the argument.
     #[inline(always)]
     pub fn setsockopt<'a, O: sockopt::SetSockOpt<'a>>(
-        &mut self,
+        &self,
         opt: O,
         arg: O::ExtArg,
     ) -> Result<O::Result> {
@@ -446,7 +446,7 @@ impl File {
     /// the raw arguments to the `setsockopt` system call.
     #[inline]
     pub unsafe fn setsockopt_raw(
-        &mut self,
+        &self,
         level: linux_unsafe::int,
         optname: linux_unsafe::int,
         optval: *const linux_unsafe::void,
@@ -490,53 +490,48 @@ extern crate std;
 
 #[cfg(feature = "std")]
 impl std::io::Read for File {
+    #[inline(always)]
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
-        self.read(buf).map_err(|e| e.into())
+        Self::read(self, buf).map_err(|e| e.into())
     }
 }
 
 #[cfg(feature = "std")]
 impl std::io::Write for File {
+    #[inline(always)]
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-        self.write(buf).map_err(|e| e.into())
+        Self::write(self, buf).map_err(|e| e.into())
     }
 
+    #[inline(always)]
     fn flush(&mut self) -> std::io::Result<()> {
-        self.sync().map_err(|e| e.into())
+        Self::sync(self).map_err(|e| e.into())
     }
 }
 
 #[cfg(feature = "std")]
 impl std::io::Seek for File {
+    #[inline(always)]
     fn seek(&mut self, pos: std::io::SeekFrom) -> std::io::Result<u64> {
-        self.seek(pos).map_err(|e| e.into())
+        Self::seek(self, pos).map_err(|e| e.into())
     }
 }
 
 #[cfg(feature = "std")]
 impl From<std::os::fd::OwnedFd> for File {
     fn from(value: std::os::fd::OwnedFd) -> Self {
-        use std::os::fd::AsRawFd;
+        use std::os::fd::IntoRawFd;
 
         Self {
-            fd: value.as_raw_fd().into(),
+            fd: value.into_raw_fd().into(),
         }
     }
 }
 
 #[cfg(feature = "std")]
-impl std::os::fd::FromRawFd for File {
-    unsafe fn from_raw_fd(fd: std::os::fd::RawFd) -> Self {
-        Self {
-            fd: fd as linux_unsafe::int,
-        }
-    }
-}
-
-#[cfg(feature = "std")]
-impl std::os::fd::IntoRawFd for File {
-    fn into_raw_fd(self) -> std::os::fd::RawFd {
-        self.into_raw_fd() as std::os::fd::RawFd
+impl std::os::fd::AsFd for File {
+    fn as_fd(&self) -> std::os::fd::BorrowedFd<'_> {
+        unsafe { std::os::fd::BorrowedFd::borrow_raw(self.fd) }
     }
 }
 

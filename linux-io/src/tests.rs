@@ -102,7 +102,7 @@ fn fcntl_dup() {
     // an OsStr is raw filename bytes as the kernel will expect.
     let filename_raw = CString::new(filename.as_os_str().as_bytes()).unwrap();
 
-    let mut f = File::create_raw(&filename_raw, 0o666)
+    let f = File::create_raw(&filename_raw, 0o666)
         .map_err(|e| e.into_std_io_error())
         .expect("failed to create file");
 
@@ -122,7 +122,7 @@ fn socket_ipv4_bind_tcp() {
     use std::println;
 
     // AF_INET + SOCK_STREAM is implicitly TCP, without explicitly naming it
-    let mut f = File::socket(sockaddr::ip::AF_INET, sockaddr::sock_type::SOCK_STREAM, 0)
+    let f = File::socket(sockaddr::ip::AF_INET, sockaddr::sock_type::SOCK_STREAM, 0)
         .map_err(|e| e.into_std_io_error())
         .expect("failed to create socket");
 
@@ -142,7 +142,7 @@ fn socket_ipv6_bind_tcp() {
     use std::println;
 
     // AF_INET6 + SOCK_STREAM is implicitly TCP, without explicitly naming it
-    let mut f = File::socket(sockaddr::ip::AF_INET6, sockaddr::sock_type::SOCK_STREAM, 0)
+    let f = File::socket(sockaddr::ip::AF_INET6, sockaddr::sock_type::SOCK_STREAM, 0)
         .map_err(|e| e.into_std_io_error())
         .expect("failed to create socket");
 
@@ -169,7 +169,7 @@ fn socket_dynipv4_bind_tcp() {
     let addr = sockaddr::ip::SockAddrIp::new(sockaddr::ip::Ipv4Addr::LOOPBACK, 0);
     assert_eq!(addr.address_family(), crate::sockaddr::ip::AF_INET);
 
-    let mut f = File::socket(addr.address_family(), sockaddr::sock_type::SOCK_STREAM, 0)
+    let f = File::socket(addr.address_family(), sockaddr::sock_type::SOCK_STREAM, 0)
         .map_err(|e| e.into_std_io_error())
         .expect("failed to create socket");
 
@@ -192,7 +192,7 @@ fn socket_dynipv6_bind_tcp() {
     let addr = sockaddr::ip::SockAddrIp::new(sockaddr::ip::Ipv6Addr::LOOPBACK, 0);
     assert_eq!(addr.address_family(), crate::sockaddr::ip::AF_INET6);
 
-    let mut f = File::socket(addr.address_family(), sockaddr::sock_type::SOCK_STREAM, 0)
+    let f = File::socket(addr.address_family(), sockaddr::sock_type::SOCK_STREAM, 0)
         .map_err(|e| e.into_std_io_error())
         .expect("failed to create socket");
 
@@ -214,7 +214,7 @@ fn socket_dynipv6mappedv4_bind_tcp() {
     let addr = sockaddr::ip::SockAddrIp::new(sockaddr::ip::Ipv4Addr::LOOPBACK.to_ipv6_mapped(), 0);
     assert_eq!(addr.address_family(), crate::sockaddr::ip::AF_INET6);
 
-    let mut f = File::socket(addr.address_family(), sockaddr::sock_type::SOCK_STREAM, 0)
+    let f = File::socket(addr.address_family(), sockaddr::sock_type::SOCK_STREAM, 0)
         .map_err(|e| e.into_std_io_error())
         .expect("failed to create socket");
 
@@ -229,7 +229,7 @@ fn socket_getsockopt() {
     use crate::sockaddr;
     use std::println;
 
-    let mut f = File::socket(sockaddr::ip::AF_INET, sockaddr::sock_type::SOCK_STREAM, 0)
+    let f = File::socket(sockaddr::ip::AF_INET, sockaddr::sock_type::SOCK_STREAM, 0)
         .map_err(|e| e.into_std_io_error())
         .expect("failed to create socket");
 
@@ -267,7 +267,7 @@ fn socket_setsockopt() {
     use crate::sockaddr;
     use std::println;
 
-    let mut f = File::socket(sockaddr::ip::AF_INET, sockaddr::sock_type::SOCK_STREAM, 0)
+    let f = File::socket(sockaddr::ip::AF_INET, sockaddr::sock_type::SOCK_STREAM, 0)
         .map_err(|e| e.into_std_io_error())
         .expect("failed to create socket");
 
