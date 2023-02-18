@@ -20,12 +20,18 @@ pub mod sockopt;
 ///
 /// When the `std` crate feature is enabled, a `File` also implements the
 /// `std:io` traits `Read`, `Write`, and `Seek`.
+///
+/// A `File` can have an optional `Device` type parameter, which if set to
+/// an implementation of `IODevice` enables the `ioctl` method to accept
+/// request constants that are declared as being compatible with that device.
+/// Otherwise, the `ioctl` method is unavailable.
 #[repr(transparent)]
-pub struct File {
+pub struct File<Device = ()> {
     pub(crate) fd: linux_unsafe::int,
+    _phantom: core::marker::PhantomData<Device>,
 }
 
-impl File {
+impl File<()> {
     /// Open an existing file.
     ///
     /// Use this function for `OpenOptions` that don't require a mode. If you
@@ -85,7 +91,11 @@ impl File {
             .map_err(|e| e.into())
     }
 
-    // Create a new socket using the `socket` system call.
+    /// Create a new socket using the `socket` system call.
+    ///
+    /// FIXME: This should really return a file with a Device type automatically
+    /// associated with it, so that the protocol-specific ioctls will be
+    /// available without any unsafe assertions.
     #[inline]
     pub fn socket(
         domain: linux_unsafe::sa_family_t,
@@ -97,7 +107,9 @@ impl File {
             .map(|fd| unsafe { Self::from_raw_fd(fd as linux_unsafe::int) })
             .map_err(|e| e.into())
     }
+}
 
+impl<Device> File<Device> {
     /// Wrap an existing raw file descriptor into a [`File`].
     ///
     /// Safety:
@@ -110,7 +122,10 @@ impl File {
     ///   descriptor.
     #[inline]
     pub unsafe fn from_raw_fd(fd: linux_unsafe::int) -> Self {
-        File { fd }
+        File {
+            fd,
+            _phantom: core::marker::PhantomData,
+        }
     }
 
     /// Creates a new file descriptor referring to the same underlying file
@@ -291,36 +306,25 @@ impl File {
         result.map(|v| v as _).map_err(|e| e.into())
     }
 
-    /// Safe wrapper for the `ioctl` system call.
+    /// Adds a device type parameter to the type of a file, allowing the
+    /// [`Self::ioctl`] method to accept request constants that are compatible
+    /// with that device type.
     ///
-    /// The safety of this wrapper relies on being passed only correct
-    /// implementations of [`ioctl::IoctlReq`], some of which are predefined
-    /// as constants elsewhere in this crate, while others will appear in
-    /// device-specific support crates.
-    ///
-    /// The type of the argument depends on which `request` you choose.
-    /// Some requests expect no argument, in which case you should pass
-    /// `()`.
-    ///
-    /// **Note:** The safety of this wrapper depends on the fact that no
-    /// two drivers in Linux use the same ioctl request number while expecting
-    /// arguments of different types. That is true today on mainline kernel
-    /// releases, but may not necessarily be true on kernels with out-of-tree
-    /// drivers, or other similar deviations from the usual standards.
-    #[inline]
-    pub fn ioctl<'a, Req: ioctl::IoctlReq<'a>>(
-        &'a self,
-        request: Req,
-        arg: Req::ExtArg,
-    ) -> Result<Req::Result> {
-        // Some ioctl requests need some temporary memory space for the
-        // kernel to write data into. It's the request implementation's
-        // responsibility to initialize it if needed, but we'll at least
-        // zero it so that any unused padding will start as zero.
-        let mut temp_mem: MaybeUninit<Req::TempMem> = MaybeUninit::zeroed();
-        let (raw_req, raw_arg) = request.prepare_ioctl_args(&arg, &mut temp_mem);
-        let raw_result = unsafe { self.ioctl_raw(raw_req, raw_arg) };
-        raw_result.map(|r| request.prepare_ioctl_result(r, &arg, &temp_mem))
+    /// **Safety:**
+    /// - Caller must guarantee that the underlying file descriptor really
+    ///   is representing a device of the given type, because the kernel
+    ///   has some overloaded ioctl request numbers that have different meaning
+    ///   depending on driver and using the wrong one can corrupt memory.
+    pub unsafe fn to_device<T: ioctl::IoDevice>(
+        self,
+        #[allow(unused_variables)] devty: T,
+    ) -> File<T> {
+        let ret = File {
+            fd: self.fd,
+            _phantom: core::marker::PhantomData,
+        };
+        core::mem::forget(self); // don't call self's "drop" implementation
+        ret
     }
 
     /// Direct wrapper around the raw `ioctl` system call.
@@ -457,7 +461,38 @@ impl File {
     }
 }
 
-impl Drop for File {
+/// Files that have been marked as representing a particular device type using
+/// [`File::to_device`] can support `ioctl` requests that are designated for
+/// that device.
+impl<Device: ioctl::IoDevice> File<Device> {
+    /// Safe wrapper for the `ioctl` system call.
+    ///
+    /// The safety of this wrapper relies on being passed only correct
+    /// implementations of [`ioctl::IoctlReq`], some of which are predefined
+    /// as constants elsewhere in this crate, while others will appear in
+    /// device-specific support crates.
+    ///
+    /// The type of the argument depends on which `request` you choose.
+    /// Some requests expect no argument, in which case you should pass
+    /// `()`.
+    #[inline]
+    pub fn ioctl<'a, Req: ioctl::IoctlReq<'a, Device>>(
+        &'a self,
+        request: Req,
+        arg: Req::ExtArg,
+    ) -> Result<Req::Result> {
+        // Some ioctl requests need some temporary memory space for the
+        // kernel to write data into. It's the request implementation's
+        // responsibility to initialize it if needed, but we'll at least
+        // zero it so that any unused padding will start as zero.
+        let mut temp_mem: MaybeUninit<Req::TempMem> = MaybeUninit::zeroed();
+        let (raw_req, raw_arg) = request.prepare_ioctl_args(&arg, &mut temp_mem);
+        let raw_result = unsafe { self.ioctl_raw(raw_req, raw_arg) };
+        raw_result.map(|r| request.prepare_ioctl_result(r, &arg, &temp_mem))
+    }
+}
+
+impl<Device> Drop for File<Device> {
     /// Attempts to close the file when it's no longer in scope.
     ///
     /// This implicit close ignores errors, which might cause data loss if
@@ -518,12 +553,13 @@ impl std::io::Seek for File {
 }
 
 #[cfg(feature = "std")]
-impl From<std::os::fd::OwnedFd> for File {
+impl From<std::os::fd::OwnedFd> for File<()> {
     fn from(value: std::os::fd::OwnedFd) -> Self {
         use std::os::fd::IntoRawFd;
 
         Self {
             fd: value.into_raw_fd().into(),
+            _phantom: core::marker::PhantomData,
         }
     }
 }

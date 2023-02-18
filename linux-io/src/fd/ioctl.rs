@@ -18,11 +18,18 @@ use core::mem::MaybeUninit;
 use linux_unsafe::args::AsRawV;
 use linux_unsafe::{int, ulong};
 
+/// Represents a device type that can have `ioctl` requests implemented for it.
+///
+/// Implementations of this type should typically be zero-sized types, because
+/// they are used only as markers for annotating `File` objects using
+/// [`super::File::to_device`].
+pub trait IoDevice {}
+
 /// Represents a particular request that can be issue with the `ioctl` system call.
 ///
 /// Safety: Implementers must ensure that they only generate valid combinations
 /// of `ioctl` request and raw argument.
-pub unsafe trait IoctlReq<'a> {
+pub unsafe trait IoctlReq<'a, Device: IoDevice> {
     /// The type that the caller will provide when using this `ioctl` command.
     ///
     /// Use `()` for requests that don't need a caller-provided argument, such
@@ -75,12 +82,13 @@ pub unsafe trait IoctlReq<'a> {
 /// return value.
 ///
 /// Safety: Callers must ensure that the given `request` is valid.
-pub const unsafe fn ioctl_no_arg<Result>(request: ulong) -> IoctlReqNoArgs<Result>
+pub const unsafe fn ioctl_no_arg<Device, Result>(request: ulong) -> IoctlReqNoArgs<Device, Result>
 where
     *mut Result: AsRawV,
+    Device: IoDevice,
     Result: FromIoctlResult<int>,
 {
-    IoctlReqNoArgs::<Result> {
+    IoctlReqNoArgs::<Device, Result> {
         request,
         _phantom: core::marker::PhantomData,
     }
@@ -94,12 +102,13 @@ where
 /// type `T` describes what this request expects to get a pointer to, and
 /// that the kernel will populate the given `T` object with data that is
 /// consistent with Rust's expectations for the given type.
-pub const unsafe fn ioctl_read<Result>(request: ulong) -> IoctlReqRead<Result>
+pub const unsafe fn ioctl_read<Device, Result>(request: ulong) -> IoctlReqRead<Device, Result>
 where
     *mut Result: AsRawV,
+    Device: IoDevice,
     Result: Copy,
 {
-    IoctlReqRead::<Result> {
+    IoctlReqRead::<Device, Result> {
         request,
         _phantom: core::marker::PhantomData,
     }
@@ -114,12 +123,15 @@ where
 /// that it isn't possible for any value of that type to cause the kernel
 /// to violate memory safety. In particular, the kernel must not modify
 /// the given memory, because the safe caller will provide a shared reference.
-pub const unsafe fn ioctl_write<Arg, Result>(request: ulong) -> IoctlReqWrite<Arg, Result>
+pub const unsafe fn ioctl_write<Device, Arg, Result>(
+    request: ulong,
+) -> IoctlReqWrite<Device, Arg, Result>
 where
     *const Arg: AsRawV,
+    Device: IoDevice,
     Result: FromIoctlResult<int>,
 {
-    IoctlReqWrite::<Arg, Result> {
+    IoctlReqWrite::<Device, Arg, Result> {
         request,
         _phantom: core::marker::PhantomData,
     }
@@ -131,14 +143,15 @@ where
 /// This is for the less common `ioctl` requests that indicate more than just
 /// success in their result, and so callers need to obtain that result.
 #[repr(transparent)]
-pub struct IoctlReqNoArgs<Result> {
+pub struct IoctlReqNoArgs<Device: IoDevice, Result> {
     request: ulong,
-    _phantom: core::marker::PhantomData<Result>,
+    _phantom: core::marker::PhantomData<(Device, Result)>,
 }
 
-unsafe impl<'a, Result> IoctlReq<'a> for IoctlReqNoArgs<Result>
+unsafe impl<'a, Device, Result> IoctlReq<'a, Device> for IoctlReqNoArgs<Device, Result>
 where
     Result: 'a + FromIoctlResult<int>,
+    Device: 'a + IoDevice,
 {
     type ExtArg = ();
     type TempMem = ();
@@ -169,19 +182,20 @@ where
 /// pointer to a zeroed memory block of type `Result` directly through to the
 /// underlying system call and then returnin a copy of that memory.
 #[repr(transparent)]
-pub struct IoctlReqRead<Result>
+pub struct IoctlReqRead<Device: IoDevice, Result>
 where
     *mut Result: AsRawV,
     Result: Copy,
 {
     request: ulong,
-    _phantom: core::marker::PhantomData<Result>,
+    _phantom: core::marker::PhantomData<(Device, Result)>,
 }
 
-unsafe impl<'a, Result> IoctlReq<'a> for IoctlReqRead<Result>
+unsafe impl<'a, Device, Result> IoctlReq<'a, Device> for IoctlReqRead<Device, Result>
 where
     *mut Result: AsRawV,
     Result: 'a + Copy,
+    Device: 'a + IoDevice,
 {
     type ExtArg = ();
     type TempMem = Result;
@@ -211,19 +225,20 @@ where
 /// Implementation of [`IoctlReq`] with a fixed `cmd` value and passing a
 /// .
 #[repr(transparent)]
-pub struct IoctlReqWrite<Arg, Result = int>
+pub struct IoctlReqWrite<Device: IoDevice, Arg, Result = int>
 where
     *const Arg: AsRawV,
 {
     request: ulong,
-    _phantom: core::marker::PhantomData<(Arg, Result)>,
+    _phantom: core::marker::PhantomData<(Device, Arg, Result)>,
 }
 
-unsafe impl<'a, Arg, Result> IoctlReq<'a> for IoctlReqWrite<Arg, Result>
+unsafe impl<'a, Device, Arg, Result> IoctlReq<'a, Device> for IoctlReqWrite<Device, Arg, Result>
 where
     *const Arg: AsRawV,
     Arg: 'a,
     Result: 'a + FromIoctlResult<int>,
+    Device: 'a + IoDevice,
 {
     type ExtArg = &'a Arg;
     type TempMem = ();
@@ -262,7 +277,7 @@ impl FromIoctlResult<int> for int {
     }
 }
 
-impl FromIoctlResult<int> for super::File {
+impl<Device: IoDevice> FromIoctlResult<int> for super::File<Device> {
     fn from_ioctl_result(raw: &int) -> Self {
         unsafe { super::File::from_raw_fd(*raw) }
     }
