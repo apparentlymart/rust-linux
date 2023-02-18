@@ -2,5 +2,6 @@
 members = [
   "demo-bin",
   "linux-io",
+  "linux-kvm",
   "linux-unsafe",
 ]

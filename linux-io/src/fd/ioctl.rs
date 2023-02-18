@@ -70,6 +70,22 @@ pub unsafe trait IoctlReq<'a> {
     ) -> Self::Result;
 }
 
+/// Constructs a new read-only [`IoctlReq`] with a fixed request code that
+/// passes no payload to `ioctl` and returns its result in the system call
+/// return value.
+///
+/// Safety: Callers must ensure that the given `request` is valid.
+pub const unsafe fn ioctl_no_arg<Result>(request: ulong) -> IoctlReqNoArgs<Result>
+where
+    *mut Result: AsRawV,
+    Result: FromIoctlResult<int>,
+{
+    IoctlReqNoArgs::<Result> {
+        request,
+        _phantom: core::marker::PhantomData,
+    }
+}
+
 /// Constructs a new read-only [`IoctlReq`] with a fixed request code and
 /// a result type that maps directly to the data the kernel will
 /// provide.
@@ -98,13 +114,54 @@ where
 /// that it isn't possible for any value of that type to cause the kernel
 /// to violate memory safety. In particular, the kernel must not modify
 /// the given memory, because the safe caller will provide a shared reference.
-pub const unsafe fn ioctl_write<Arg>(request: ulong) -> IoctlReqWrite<Arg>
+pub const unsafe fn ioctl_write<Arg, Result>(request: ulong) -> IoctlReqWrite<Arg, Result>
 where
     *const Arg: AsRawV,
+    Result: FromIoctlResult<int>,
 {
-    IoctlReqWrite::<Arg> {
+    IoctlReqWrite::<Arg, Result> {
         request,
         _phantom: core::marker::PhantomData,
+    }
+}
+
+/// Implementation of [`IoctlReq`] with a fixed `cmd` and passing no arguments
+/// at all, just returning the kernel's result value.
+///
+/// This is for the less common `ioctl` requests that indicate more than just
+/// success in their result, and so callers need to obtain that result.
+#[repr(transparent)]
+pub struct IoctlReqNoArgs<Result> {
+    request: ulong,
+    _phantom: core::marker::PhantomData<Result>,
+}
+
+unsafe impl<'a, Result> IoctlReq<'a> for IoctlReqNoArgs<Result>
+where
+    Result: 'a + FromIoctlResult<int>,
+{
+    type ExtArg = ();
+    type TempMem = ();
+    type RawArg = ();
+    type Result = Result;
+
+    #[inline(always)]
+    fn prepare_ioctl_args(
+        &self,
+        _: &Self::ExtArg,
+        _: &mut MaybeUninit<Self::TempMem>,
+    ) -> (ulong, Self::RawArg) {
+        (self.request, ())
+    }
+
+    #[inline(always)]
+    fn prepare_ioctl_result(
+        &self,
+        raw: int,
+        _: &Self::ExtArg,
+        _: &MaybeUninit<Self::TempMem>,
+    ) -> Self::Result {
+        Self::Result::from_ioctl_result(&raw)
     }
 }
 
@@ -154,23 +211,24 @@ where
 /// Implementation of [`IoctlReq`] with a fixed `cmd` value and passing a
 /// .
 #[repr(transparent)]
-pub struct IoctlReqWrite<Arg>
+pub struct IoctlReqWrite<Arg, Result = int>
 where
     *const Arg: AsRawV,
 {
     request: ulong,
-    _phantom: core::marker::PhantomData<Arg>,
+    _phantom: core::marker::PhantomData<(Arg, Result)>,
 }
 
-unsafe impl<'a, Arg> IoctlReq<'a> for IoctlReqWrite<Arg>
+unsafe impl<'a, Arg, Result> IoctlReq<'a> for IoctlReqWrite<Arg, Result>
 where
     *const Arg: AsRawV,
     Arg: 'a,
+    Result: 'a + FromIoctlResult<int>,
 {
     type ExtArg = &'a Arg;
     type TempMem = ();
     type RawArg = *const Arg;
-    type Result = int;
+    type Result = Result;
 
     #[inline(always)]
     fn prepare_ioctl_args(
@@ -188,6 +246,58 @@ where
         _: &Self::ExtArg,
         _: &MaybeUninit<Self::TempMem>,
     ) -> Self::Result {
-        ret
+        Result::from_ioctl_result(&ret)
     }
+}
+
+/// Trait for types that can be constructed automatically from `ioctl` results
+/// from requests with a given argument type and temporary value type.
+pub trait FromIoctlResult<Raw> {
+    fn from_ioctl_result(raw: &Raw) -> Self;
+}
+
+impl FromIoctlResult<int> for int {
+    fn from_ioctl_result(raw: &int) -> Self {
+        *raw
+    }
+}
+
+impl FromIoctlResult<int> for super::File {
+    fn from_ioctl_result(raw: &int) -> Self {
+        unsafe { super::File::from_raw_fd(*raw) }
+    }
+}
+
+#[allow(non_snake_case)]
+const fn _IOC(dir: ulong, typ: ulong, nr: ulong, size: ulong) -> ulong {
+    (dir << 30) | (typ << 8) | (nr << 0) | (size << 16)
+}
+
+/// Equivalent to the kernel macro `_IO` for defining ioctl request numbers that
+/// neither read nor write within the standard numbering scheme.
+#[allow(non_snake_case)]
+pub const fn _IO(typ: ulong, nr: ulong) -> ulong {
+    _IOC(0, typ, nr, 0)
+}
+
+/// Equivalent to the kernel macro `_IOR` for defining ioctl request numbers
+/// where userspace reads data from the kernel.
+#[allow(non_snake_case)]
+pub const fn _IOR(typ: ulong, nr: ulong, size: ulong) -> ulong {
+    _IOC(2, typ, nr, size)
+}
+
+/// Equivalent to the kernel macro `_IOW` for defining ioctl request numbers
+/// where userspace writes data to the kernel.
+#[allow(non_snake_case)]
+pub const fn _IOW(typ: ulong, nr: ulong, size: ulong) -> ulong {
+    _IOC(1, typ, nr, size)
+}
+
+/// Equivalent to the kernel macro `_IOWR` for defining ioctl request numbers
+/// where userspace writes data to the kernel _and_ the kernel returns data
+/// back to userspace.
+#[allow(non_snake_case)]
+pub const fn _IOWR(typ: ulong, nr: ulong, size: ulong) -> ulong {
+    _IOC(1 | 2, typ, nr, size)
 }
