@@ -3,7 +3,7 @@
 /// The layout of the shared memory region used to communicate with the
 /// `KVM_RUN` ioctl request, which is `mmap`ed from the VCPU's file descriptor.
 #[allow(non_camel_case_types)]
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 #[repr(C)]
 pub struct kvm_run {
     pub request_interrupt_window: u8,
@@ -19,7 +19,7 @@ pub struct kvm_run {
 }
 
 #[allow(non_camel_case_types)]
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 #[repr(C)]
 pub struct kvm_userspace_memory_region {
     pub slot: u32,
@@ -42,27 +42,33 @@ pub union ExitDetails {
     pub padding: [linux_unsafe::char; 256],
 }
 
-#[derive(Clone, Copy)]
+impl core::fmt::Debug for ExitDetails {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("ExitDetails").finish()
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
 #[repr(C)]
 pub struct ExitUnknown {
     pub hardware_exit_reason: u64,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 #[repr(C)]
 pub struct ExitFailEntry {
     pub hardware_entry_failure_reason: u64,
     pub cpu: u32,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 #[repr(C)]
 pub struct ExitException {
     pub exception: u32,
     pub error_code: u32,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 #[repr(C)]
 pub struct ExitIo {
     pub direction: u8,
@@ -72,7 +78,7 @@ pub struct ExitIo {
     pub data_offset: u64,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 #[repr(C)]
 pub struct ExitMmio {
     pub phys_addr: u64,

@@ -146,7 +146,27 @@ where
 }
 
 /// Constructs a new write-only [`IoctlReq`] with a fixed request code and
-/// an argument type that maps directly to the data the kernel excepts
+/// an argument type that the data the kernel expects to recieve directly as
+/// its argument, without any pointer indirection.
+///
+/// Safety: Callers must ensure that the given `request` is valid, that
+/// type `T` describes what this request expects to get as its argument.
+pub const unsafe fn ioctl_write_val<Device, Arg, Result>(
+    request: ulong,
+) -> IoctlReqWriteVal<Device, Arg, Result>
+where
+    Arg: AsRawV,
+    Device: IoDevice,
+    Result: FromIoctlResult<int>,
+{
+    IoctlReqWriteVal::<Device, Arg, Result> {
+        request,
+        _phantom: core::marker::PhantomData,
+    }
+}
+
+/// Constructs a new write-only [`IoctlReq`] with a fixed request code and
+/// an argument type that maps directly to the data the kernel expects
 /// to receive a pointer to.
 ///
 /// Safety: Callers must ensure that the given `request` is valid, that
@@ -254,7 +274,49 @@ where
 }
 
 /// Implementation of [`IoctlReq`] with a fixed `cmd` value and passing a
-/// .
+/// direct value from memory, without pointer indirection.
+#[repr(transparent)]
+pub struct IoctlReqWriteVal<Device: IoDevice, Arg, Result = int>
+where
+    Arg: AsRawV,
+{
+    request: ulong,
+    _phantom: core::marker::PhantomData<(Device, Arg, Result)>,
+}
+
+unsafe impl<'a, Device, Arg, Result> IoctlReq<'a, Device> for IoctlReqWriteVal<Device, Arg, Result>
+where
+    Arg: 'a + AsRawV,
+    Result: 'a + FromIoctlResult<int>,
+    Device: 'a + IoDevice,
+{
+    type ExtArg = Arg;
+    type TempMem = ();
+    type RawArg = Arg;
+    type Result = Result;
+
+    #[inline(always)]
+    fn prepare_ioctl_args(
+        &self,
+        arg: &Self::ExtArg,
+        _: &mut MaybeUninit<Self::TempMem>,
+    ) -> (ulong, Arg) {
+        (self.request, *arg)
+    }
+
+    #[inline(always)]
+    fn prepare_ioctl_result(
+        &self,
+        ret: int,
+        _: &Self::ExtArg,
+        _: &MaybeUninit<Self::TempMem>,
+    ) -> Self::Result {
+        Result::from_ioctl_result(&ret)
+    }
+}
+
+/// Implementation of [`IoctlReq`] with a fixed `cmd` value and passing a
+/// pointer to an argument value in memory.
 #[repr(transparent)]
 pub struct IoctlReqWrite<Device: IoDevice, Arg, Result = int>
 where

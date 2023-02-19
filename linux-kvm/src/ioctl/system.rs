@@ -1,12 +1,10 @@
-use linux_io::fd::ioctl::{
-    ioctl_no_arg, ioctl_read, ioctl_write, IoctlReqNoArgs, IoctlReqRead, IoctlReqWrite, _IO, _IOR,
-    _IOW, _IOWR,
-};
+use linux_io::fd::ioctl::{ioctl_no_arg, ioctl_write, IoctlReqNoArgs, IoctlReqWrite, _IO, _IOW};
 use linux_io::File;
 use linux_unsafe::{int, ulong};
 
 /// The device type marker for the main KVM file descriptor, typically obtained
 /// by opening `/dev/kvm`.
+#[derive(Debug)]
 pub struct KvmSystem;
 
 impl linux_io::fd::ioctl::IoDevice for KvmSystem {}

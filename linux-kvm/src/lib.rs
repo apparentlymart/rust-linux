@@ -18,6 +18,7 @@ use linux_unsafe::int;
 ///
 /// This is the entry point for obtaining all other KVM objects, whether
 /// directly or indirectly.
+#[derive(Debug)]
 pub struct Kvm {
     f: File<ioctl::system::KvmSystem>,
 }
@@ -98,6 +99,7 @@ impl Kvm {
 }
 
 /// An individual virtual machine created through a [`Kvm`] object.
+#[derive(Debug)]
 pub struct VirtualMachine<'a> {
     f: File<ioctl::vm::KvmVm>,
     kvm: &'a Kvm,
@@ -130,7 +132,7 @@ impl<'a> VirtualMachine<'a> {
     #[inline(always)]
     pub fn create_vcpu(&self, cpu_id: linux_unsafe::int) -> Result<VirtualCpu> {
         self.f
-            .ioctl(ioctl::vm::KVM_CREATE_VCPU, &cpu_id)
+            .ioctl(ioctl::vm::KVM_CREATE_VCPU, cpu_id)
             .map(|f| VirtualCpu::from_file(f, &self.kvm))
     }
 
@@ -157,6 +159,7 @@ impl<'a> VirtualMachine<'a> {
 }
 
 /// A virtual CPU belonging to a [`VirtualMachine`].
+#[derive(Debug)]
 pub struct VirtualCpu<'a> {
     f: File<ioctl::vcpu::KvmVcpu>,
     kvm: &'a Kvm,
@@ -183,6 +186,7 @@ impl<'a> VirtualCpu<'a> {
 }
 
 /// Wraps a [`VirtualCpu`] with some extra state required to run it.
+#[derive(Debug)]
 pub struct VirtualCpuRunner<'a> {
     vcpu: VirtualCpu<'a>,
     run: *mut raw::kvm_run,
@@ -219,23 +223,16 @@ impl<'a> VirtualCpuRunner<'a> {
         })
     }
 
-    /// Returns the raw `kvm_run` structure that controls how the VCPU will
-    /// behave next time it is run.
-    #[inline(always)]
-    pub fn raw_run_state(&'a mut self) -> &'a mut raw::kvm_run {
-        // Caller gets a mut ref to our shared memory area with the same
-        // lifetime as self, so they must cease using that ref before
-        // they can call `run_raw`, since it also requires a mut ref to self.
-        unsafe { &mut *self.run }
+    #[inline]
+    pub fn with_raw_run_state<R>(&mut self, f: impl FnOnce(&mut raw::kvm_run) -> R) -> R {
+        f(unsafe { &mut *self.run })
     }
 
-    /// Run the VCPU until it exits and then return a reference to the raw
-    /// `kvm_run` structure that describes the exit reason and controls how
-    /// the VCPU will behave once run again.
+    /// Run the VCPU until it exits.
     #[inline(always)]
-    pub fn run_raw(&'a mut self) -> Result<&'a mut raw::kvm_run> {
+    pub fn run_raw(&mut self) -> Result<()> {
         self.vcpu.f.ioctl(ioctl::vcpu::KVM_RUN, ())?;
-        Ok(self.raw_run_state())
+        Ok(())
     }
 }
 
@@ -249,6 +246,7 @@ impl<'a> Drop for VirtualCpuRunner<'a> {
 
 /// A page-aligned host memory region that can be mapped into the guest memory
 /// space of a [`VirtualMachine`].
+#[derive(Debug)]
 pub struct MemoryRegion {
     addr: *mut linux_unsafe::void,
     length: linux_unsafe::size_t,

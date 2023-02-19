@@ -4,6 +4,7 @@ use linux_unsafe::int;
 use super::system::KVMIO;
 
 /// The device type marker for the a KVM virtual CPU file descriptor.
+#[derive(Debug)]
 pub struct KvmVcpu;
 
 impl linux_io::fd::ioctl::IoDevice for KvmVcpu {}

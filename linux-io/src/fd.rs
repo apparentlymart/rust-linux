@@ -550,9 +550,15 @@ impl<Device> Drop for File<Device> {
     }
 }
 
+impl<Device> core::fmt::Debug for File<Device> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("File").field("fd", &self.fd).finish()
+    }
+}
+
 /// [`File`] implements [`core::fmt::Write`] by passing UTF-8 encoded bytes
 /// directly to the `write` method.
-impl core::fmt::Write for File {
+impl<T> core::fmt::Write for File<T> {
     fn write_str(&mut self, s: &str) -> core::fmt::Result {
         let mut bytes = s.as_bytes();
         while !bytes.is_empty() {
@@ -570,7 +576,7 @@ impl core::fmt::Write for File {
 extern crate std;
 
 #[cfg(feature = "std")]
-impl std::io::Read for File {
+impl<Device> std::io::Read for File<Device> {
     #[inline(always)]
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
         Self::read(self, buf).map_err(|e| e.into())
@@ -578,7 +584,7 @@ impl std::io::Read for File {
 }
 
 #[cfg(feature = "std")]
-impl std::io::Write for File {
+impl<Device> std::io::Write for File<Device> {
     #[inline(always)]
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
         Self::write(self, buf).map_err(|e| e.into())
@@ -591,7 +597,7 @@ impl std::io::Write for File {
 }
 
 #[cfg(feature = "std")]
-impl std::io::Seek for File {
+impl<Device> std::io::Seek for File<Device> {
     #[inline(always)]
     fn seek(&mut self, pos: std::io::SeekFrom) -> std::io::Result<u64> {
         Self::seek(self, pos).map_err(|e| e.into())
@@ -611,7 +617,7 @@ impl From<std::os::fd::OwnedFd> for File<()> {
 }
 
 #[cfg(feature = "std")]
-impl std::os::fd::AsFd for File {
+impl<Device> std::os::fd::AsFd for File<Device> {
     fn as_fd(&self) -> std::os::fd::BorrowedFd<'_> {
         unsafe { std::os::fd::BorrowedFd::borrow_raw(self.fd) }
     }
