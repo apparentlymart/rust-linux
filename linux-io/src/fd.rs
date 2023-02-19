@@ -1,4 +1,5 @@
 use linux_unsafe::args::AsRawV;
+use linux_unsafe::void;
 
 use crate::result::Result;
 use crate::seek::SeekFrom;
@@ -480,6 +481,25 @@ impl<Device> File<Device> {
         optlen: linux_unsafe::socklen_t,
     ) -> Result<linux_unsafe::int> {
         let result = unsafe { linux_unsafe::setsockopt(self.fd, level, optname, optval, optlen) };
+        result.map_err(|e| e.into())
+    }
+
+    /// Map the file into memory using the `mmap` system call.
+    ///
+    /// There is no safe wrapper for this because mapping a file into memory
+    /// is inherently unsafe. Callers must take care to ensure they use the
+    /// returned pointer in a safe way and to release the mapping with
+    /// [`linux_unsafe::munmap`] when it's no longer needed.
+    #[inline(always)]
+    pub unsafe fn mmap_raw(
+        &self,
+        offset: linux_unsafe::off_t,
+        length: linux_unsafe::size_t,
+        addr: *mut void,
+        prot: linux_unsafe::int,
+        flags: linux_unsafe::int,
+    ) -> Result<*mut void> {
+        let result = unsafe { linux_unsafe::mmap(addr, length, prot, flags, self.fd, offset) };
         result.map_err(|e| e.into())
     }
 }

@@ -39,4 +39,12 @@ pub const KVM_CREATE_VM: IoctlReqNoArgs<KvmSystem, File<super::vm::KvmVm>> =
 /// This is also supported for virtual machine file descriptors, but you must
 /// use [`super::vm::KVM_CHECK_EXTENSION`] instead for those.
 pub const KVM_CHECK_EXTENSION: IoctlReqWrite<KvmSystem, int, int> =
-    unsafe { ioctl_write(_IO(KVMIO, 0x03)) };
+    unsafe { ioctl_write(_IOW(KVMIO, 0x03, core::mem::size_of::<int>() as ulong)) };
+
+/// Returns the size of the shared memory region that will be used to
+/// communicate with userspace for each VCPU.
+///
+/// The [`super::vcpu::KVM_RUN`] ioctl request communicates with userspace via
+/// a shared memory region. This ioctl request returns the size of that region.
+pub const KVM_GET_VCPU_MMAP_SIZE: IoctlReqNoArgs<KvmSystem, int> =
+    unsafe { ioctl_no_arg(_IO(KVMIO, 0x04)) };

@@ -403,6 +403,27 @@ pub unsafe fn lseek(fd: int, offset: off_t, whence: int) -> Result<off_t> {
     syscall!(raw::LSEEK, fd, offset, whence)
 }
 
+/// Map a file or device into memory.
+#[cfg(have_syscall = "mmap")]
+#[inline(always)]
+pub unsafe fn mmap(
+    addr: *mut void,
+    length: size_t,
+    prot: int,
+    flags: int,
+    fd: int,
+    offset: off_t,
+) -> Result<*mut void> {
+    syscall!(raw::MMAP, addr, length, prot, flags, fd, offset)
+}
+
+/// Remove a mapping previously created with [`mmap`].
+#[cfg(have_syscall = "munmap")]
+#[inline(always)]
+pub unsafe fn munmap(addr: *mut void, length: size_t) -> Result<*mut void> {
+    syscall!(raw::MUNMAP, addr, length)
+}
+
 /// Open a file.
 #[cfg(have_syscall = "open")]
 #[inline(always)]
