@@ -172,6 +172,20 @@ impl<'a> VirtualCpu<'a> {
         Self { f, kvm }
     }
 
+    /// Get the architecture-specific representation of the current register
+    /// values of this vCPU.
+    #[inline(always)]
+    pub fn get_regs(&self) -> Result<raw::kvm_regs> {
+        self.f.ioctl(ioctl::vcpu::KVM_GET_REGS, ())
+    }
+
+    /// Set the architecture-specific representation of the current register
+    /// values of this vCPU.
+    #[inline(always)]
+    pub fn set_regs(&self, new: &raw::kvm_regs) -> Result<()> {
+        self.f.ioctl(ioctl::vcpu::KVM_SET_REGS, new).map(|_| ())
+    }
+
     /// Wrap this CPU into an object that has the necessary extra state to
     /// run it.
     ///
@@ -221,6 +235,29 @@ impl<'a> VirtualCpuRunner<'a> {
             run: run_ptr,
             run_len: mmap_size,
         })
+    }
+
+    /// Get the architecture-specific representation of the current register
+    /// values of this vCPU.
+    #[inline(always)]
+    pub fn get_regs(&self) -> Result<raw::kvm_regs> {
+        self.vcpu.get_regs()
+    }
+
+    /// Set the architecture-specific representation of the current register
+    /// values of this vCPU.
+    #[inline(always)]
+    pub fn set_regs(&self, new: &raw::kvm_regs) -> Result<()> {
+        self.vcpu.set_regs(new)
+    }
+
+    /// Modify in place the architecturte-specific register values of this vCPU.
+    #[inline]
+    pub fn modify_regs<R>(&self, f: impl FnOnce(&mut raw::kvm_regs) -> R) -> Result<R> {
+        let mut regs = self.get_regs()?;
+        let ret = f(&mut regs);
+        self.set_regs(&regs)?;
+        Ok(ret)
     }
 
     #[inline]

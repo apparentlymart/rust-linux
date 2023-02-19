@@ -29,6 +29,65 @@ pub struct kvm_userspace_memory_region {
     pub userspace_addr: u64, // start of the userspace allocated memory
 }
 
+#[cfg(target_arch = "x86_64")]
+#[allow(non_camel_case_types)]
+#[derive(Clone, Copy, Debug)]
+#[repr(C)]
+pub struct kvm_regs {
+    pub rax: u64,
+    pub rbx: u64,
+    pub rcx: u64,
+    pub rdx: u64,
+    pub rsi: u64,
+    pub rdi: u64,
+    pub rsp: u64,
+    pub rbp: u64,
+    pub r8: u64,
+    pub r9: u64,
+    pub r10: u64,
+    pub r11: u64,
+    pub r12: u64,
+    pub r13: u64,
+    pub r14: u64,
+    pub r15: u64,
+    pub rip: u64,
+    pub rflags: u64,
+}
+
+#[cfg(target_arch = "aarch64")]
+#[allow(non_camel_case_types)]
+#[derive(Clone, Copy, Debug)]
+#[repr(C)]
+pub struct kvm_regs {
+    pub regs: aarch64_user_pt_regs,
+    pub sp_el1: u64,
+    pub elr_el1: u64,
+    pub spsr: [u64; 5],
+    pub fp_regs: aarch64_user_fpsimd_state,
+}
+
+#[cfg(target_arch = "aarch64")]
+#[allow(non_camel_case_types)]
+#[derive(Clone, Copy, Debug)]
+#[repr(C)]
+pub struct aarch64_user_pt_regs {
+    pub regs: [u64; 31],
+    pub sp: u64,
+    pub pc: u64,
+    pub pstate: u64,
+}
+
+#[cfg(target_arch = "aarch64")]
+#[allow(non_camel_case_types)]
+#[derive(Clone, Copy, Debug)]
+#[repr(C)]
+pub struct aarch64_user_fpsimd_state {
+    pub vregs: [u128; 32],
+    pub fpsr: u32,
+    pub fpcr: u32,
+    pub __reserved: [u32; 2],
+}
+
 /// Used for the `exit_details` field of [`kvm_run`].
 #[derive(Clone, Copy)]
 #[repr(C)]
