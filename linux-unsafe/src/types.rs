@@ -53,8 +53,40 @@ pub type loff_t = ffi::c_longlong;
 /// The type used for process identifiers (PIDs) on the current platform.
 pub type pid_t = int;
 
-/// The type used for representing the length of a socket address.
-pub type sockaddr = void;
+/// The type used for representing socket addresses in the raw system calls.
+///
+/// This is a type of unknown length, because the actual length of a socket
+/// address depends on the address family. When reading a socket address of
+/// an unknown address family, use a pointer to a [`sockaddr_storage`] as a
+/// placeholder type and then convert based on the returned `family`.
+///
+/// **Warning:** It is not meaningful to ask the compiler for the size of
+/// this type; it will return an arbitrary placeholder value. If you need
+/// sufficient storage for an arbitrary address, use [`sockaddr_storage`]
+/// instead.
+#[repr(C)]
+pub struct sockaddr {
+    pub family: sa_family_t,
+
+    // Intentionally not public to discourage using values of this type;
+    // it's here primarily as a placeholder type for arguments that are
+    // pointers to arbitrary addresses.
+    data: [u8; 14],
+}
+
+/// Represents the upper limit for the size of any [`sockaddr`] value, across
+/// all address families.
+///
+/// This is a reasonable default type to use when retrieving a socket address
+/// from the kernel without knowledge of its address family. It is guaranteed
+/// at least as large as the largest address type the kernel can return.
+/// After the value is populated, use `family` to convert to a more specific
+/// address type.
+#[repr(C, align(8))]
+pub struct sockaddr_storage {
+    pub family: sa_family_t,
+    pub data: [u8; 128 - core::mem::size_of::<sa_family_t>()],
+}
 
 /// The type used for representing the length of a socket address.
 pub type socklen_t = int;

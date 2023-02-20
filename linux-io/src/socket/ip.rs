@@ -409,7 +409,9 @@ pub const IPPROTO_MPTCP: linux_unsafe::int = 262;
 
 unsafe impl super::SockAddr for SockAddrIpv4 {
     #[inline(always)]
-    unsafe fn sockaddr_raw_const(&self) -> (*const linux_unsafe::void, linux_unsafe::socklen_t) {
+    unsafe fn sockaddr_raw_const(
+        &self,
+    ) -> (*const linux_unsafe::sockaddr, linux_unsafe::socklen_t) {
         (
             self as *const Self as *const _,
             core::mem::size_of::<Self>() as linux_unsafe::socklen_t,
@@ -417,7 +419,9 @@ unsafe impl super::SockAddr for SockAddrIpv4 {
     }
 
     #[inline(always)]
-    unsafe fn sockaddr_raw_mut(&mut self) -> (*mut linux_unsafe::void, linux_unsafe::socklen_t) {
+    unsafe fn sockaddr_raw_mut(
+        &mut self,
+    ) -> (*mut linux_unsafe::sockaddr, linux_unsafe::socklen_t) {
         (
             self as *mut Self as *mut _,
             core::mem::size_of::<Self>() as linux_unsafe::socklen_t,
@@ -427,7 +431,9 @@ unsafe impl super::SockAddr for SockAddrIpv4 {
 
 unsafe impl super::SockAddr for SockAddrIpv6 {
     #[inline(always)]
-    unsafe fn sockaddr_raw_const(&self) -> (*const linux_unsafe::void, linux_unsafe::socklen_t) {
+    unsafe fn sockaddr_raw_const(
+        &self,
+    ) -> (*const linux_unsafe::sockaddr, linux_unsafe::socklen_t) {
         (
             self as *const Self as *const _,
             core::mem::size_of::<Self>() as linux_unsafe::socklen_t,
@@ -435,7 +441,9 @@ unsafe impl super::SockAddr for SockAddrIpv6 {
     }
 
     #[inline(always)]
-    unsafe fn sockaddr_raw_mut(&mut self) -> (*mut linux_unsafe::void, linux_unsafe::socklen_t) {
+    unsafe fn sockaddr_raw_mut(
+        &mut self,
+    ) -> (*mut linux_unsafe::sockaddr, linux_unsafe::socklen_t) {
         (
             self as *mut Self as *mut _,
             core::mem::size_of::<Self>() as linux_unsafe::socklen_t,
@@ -445,7 +453,9 @@ unsafe impl super::SockAddr for SockAddrIpv6 {
 
 unsafe impl super::SockAddr for SockAddrIp {
     #[inline(always)]
-    unsafe fn sockaddr_raw_const(&self) -> (*const linux_unsafe::void, linux_unsafe::socklen_t) {
+    unsafe fn sockaddr_raw_const(
+        &self,
+    ) -> (*const linux_unsafe::sockaddr, linux_unsafe::socklen_t) {
         // Our inner is a union over the possible address types, and we can use
         // the required "family" field as the tag for our union without needing
         // any additional storage.
@@ -457,7 +467,9 @@ unsafe impl super::SockAddr for SockAddrIp {
     }
 
     #[inline(always)]
-    unsafe fn sockaddr_raw_mut(&mut self) -> (*mut linux_unsafe::void, linux_unsafe::socklen_t) {
+    unsafe fn sockaddr_raw_mut(
+        &mut self,
+    ) -> (*mut linux_unsafe::sockaddr, linux_unsafe::socklen_t) {
         // Our inner is a union over the possible address types, and we can use
         // the required "family" field as the tag for our union without needing
         // any additional storage.

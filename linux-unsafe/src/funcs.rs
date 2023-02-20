@@ -47,7 +47,7 @@ macro_rules! syscall {
 #[cfg(have_syscall = "accept")]
 #[inline(always)]
 pub unsafe fn accept(sockfd: int, addr: *mut sockaddr, addrlen: *mut socklen_t) -> Result<int> {
-    syscall!(raw::ACCEPT, sockfd, addr, addrlen)
+    syscall!(raw::ACCEPT, sockfd, addr as *const void, addrlen)
 }
 
 /// Accept a connection on a socket with additional flags.
@@ -59,7 +59,7 @@ pub unsafe fn accept4(
     addrlen: *mut socklen_t,
     flags: int,
 ) -> Result<int> {
-    syscall!(raw::ACCEPT4, sockfd, addr, addrlen, flags)
+    syscall!(raw::ACCEPT4, sockfd, addr as *const void, addrlen, flags)
 }
 
 /// Check user's permissions for a file.
@@ -88,7 +88,7 @@ pub unsafe fn alarm(seconds: uint) -> uint {
 #[cfg(have_syscall = "bind")]
 #[inline(always)]
 pub unsafe fn bind(sockfd: int, addr: *const sockaddr, addrlen: socklen_t) -> Result<int> {
-    syscall!(raw::BIND, sockfd, addr, addrlen)
+    syscall!(raw::BIND, sockfd, addr as *const void, addrlen)
 }
 
 /// Set the program break.
@@ -145,7 +145,7 @@ pub unsafe fn close_range(first: int, last: int, flags: uint) -> Result<int> {
 #[cfg(have_syscall = "connect")]
 #[inline(always)]
 pub unsafe fn connect(sockfd: int, addr: *const sockaddr, addrlen: socklen_t) -> Result<int> {
-    syscall!(raw::CONNECT, sockfd, addr, addrlen)
+    syscall!(raw::CONNECT, sockfd, addr as *const void, addrlen)
 }
 
 /// Create a file.
@@ -374,11 +374,119 @@ pub unsafe fn getdents64(fd: int, dirp: *mut void, count: int) -> Result<int> {
     syscall!(raw::GETDENTS, fd, dirp as *mut void, count)
 }
 
+/// Get the effective group ID of the current process.
+#[cfg(have_syscall = "getegid")]
+#[inline(always)]
+pub unsafe fn getegid() -> gid_t {
+    raw::syscall0(raw::GETEGID) as gid_t
+}
+
+/// Get the effective user ID of the current process.
+#[cfg(have_syscall = "geteuid")]
+#[inline(always)]
+pub unsafe fn geteuid() -> uid_t {
+    raw::syscall0(raw::GETEUID) as uid_t
+}
+
+/// Get the real group ID of the current process.
+#[cfg(have_syscall = "getgid")]
+#[inline(always)]
+pub unsafe fn getgid() -> gid_t {
+    raw::syscall0(raw::GETGID) as gid_t
+}
+
+/// Get the supplementary group IDs of the current process.
+///
+/// `size` is the number of `gid_t` values that could fit in the buffer that
+/// `list` points to. The return value is the number of values actually written.
+#[cfg(have_syscall = "getgroups")]
+#[inline(always)]
+pub unsafe fn getgroups(size: int, list: *mut gid_t) -> Result<int> {
+    syscall!(raw::GETGROUPS, size, list)
+}
+
+/// Get the address of the peer connected to a socket.
+///
+/// Socket addresses have varying lengths depending on address family. Callers
+/// should pass a buffer of the appropriate size for the socket's address
+/// family and indicate that buffer size in `addrlen`.
+///
+/// Updates the value at `addrlen` to reflect the number of bytes actually
+/// needed, which might be longer than the given `addrlen` if the given buffer
+/// is too short for the address, in which case the value written to `addr` is
+/// truncated to fit.
+#[cfg(have_syscall = "getpeername")]
+#[inline(always)]
+pub unsafe fn getpeername(
+    sockfd: int,
+    addr: *mut sockaddr,
+    addrlen: *mut socklen_t,
+) -> Result<int> {
+    syscall!(raw::GETPEERNAME, sockfd, addr as *mut void, addrlen)
+}
+
 /// Get the process id (PID) of the current process.
 #[cfg(have_syscall = "getpid")]
 #[inline(always)]
 pub unsafe fn getpid() -> pid_t {
     raw::syscall0(raw::GETPID) as pid_t
+}
+
+/// Get the process id (PID) of the parent of the current process.
+#[cfg(have_syscall = "getppid")]
+#[inline(always)]
+pub unsafe fn getppid() -> pid_t {
+    raw::syscall0(raw::GETPPID) as pid_t
+}
+
+/// Get random bytes from the kernel.
+#[cfg(have_syscall = "getrandom")]
+#[inline(always)]
+pub unsafe fn getrandom(buf: *mut void, buflen: size_t, flags: uint) -> Result<int> {
+    syscall!(raw::GETRANDOM, buf, buflen, flags)
+}
+
+/// Get the real GID, the effective GID, and the saved set-group-ID of the
+/// current process.
+#[cfg(have_syscall = "getresgid")]
+#[inline(always)]
+pub unsafe fn getresgid(rgid: *mut gid_t, egid: *mut gid_t, sgid: *mut gid_t) -> Result<int> {
+    syscall!(raw::GETRESGID, rgid, egid, sgid)
+}
+
+/// Get the real UID, the effective UID, and the saved set-user-ID of the
+/// current process.
+#[cfg(have_syscall = "getresuid")]
+#[inline(always)]
+pub unsafe fn getresuid(ruid: *mut gid_t, euid: *mut gid_t, suid: *mut gid_t) -> Result<int> {
+    syscall!(raw::GETRESUID, ruid, euid, suid)
+}
+
+/// Get the session ID of a process, or of the current process if `pid` is zero.
+#[cfg(have_syscall = "getsid")]
+#[inline(always)]
+pub unsafe fn getsid(pid: pid_t) -> Result<pid_t> {
+    syscall!(raw::GETSID, pid)
+}
+
+/// Get the address that a socket is bound to.
+///
+/// Socket addresses have varying lengths depending on address family. Callers
+/// should pass a buffer of the appropriate size for the socket's address
+/// family and indicate that buffer size in `addrlen`.
+///
+/// Updates the value at `addrlen` to reflect the number of bytes actually
+/// needed, which might be longer than the given `addrlen` if the given buffer
+/// is too short for the address, in which case the value written to `addr` is
+/// truncated to fit.
+#[cfg(have_syscall = "getsockname")]
+#[inline(always)]
+pub unsafe fn getsockname(
+    sockfd: int,
+    addr: *mut sockaddr,
+    addrlen: *mut socklen_t,
+) -> Result<int> {
+    syscall!(raw::GETSOCKNAME, sockfd, addr as *mut void, addrlen)
 }
 
 /// Get a socket option.
@@ -392,6 +500,56 @@ pub unsafe fn getsockopt(
     optlen: *mut socklen_t,
 ) -> Result<int> {
     syscall!(raw::GETSOCKOPT, sockfd, level, optname, optval, optlen)
+}
+
+/// Get the thread id (TID) of the current process.
+#[cfg(have_syscall = "gettid")]
+#[inline(always)]
+pub unsafe fn gettid() -> pid_t {
+    raw::syscall0(raw::GETTID) as pid_t
+}
+
+/// Get the real user ID of the current process.
+#[cfg(have_syscall = "getuid")]
+#[inline(always)]
+pub unsafe fn getuid() -> uid_t {
+    raw::syscall0(raw::GETUID) as uid_t
+}
+
+/// Adds a new watch, or modifies an existing watch, to an inotify event queue.
+///
+/// The return value is a "watch descriptor", which you can use to later remove
+/// the same watch with [`inotify_rm_watch`].
+#[cfg(have_syscall = "inotify_add_watch")]
+#[inline(always)]
+pub unsafe fn inotify_add_watch(fd: int, pathname: *const char, mask: u32) -> Result<int> {
+    syscall!(raw::INOTIFY_ADD_WATCH, fd, pathname, mask)
+}
+
+/// Initializes a new inotify instance and returns a file descriptor associated
+/// with a new inotify event queue.
+#[cfg(have_syscall = "inotify_init")]
+#[inline(always)]
+pub unsafe fn inotify_init() -> Result<int> {
+    syscall!(raw::INOTIFY_INIT)
+}
+
+/// Removes an existing watch from an inotify event queue.
+///
+/// `wd` is a "watch descriptor" returned from an earlier call to
+/// [`inotify_add_watch`].
+#[cfg(have_syscall = "inotify_rm_watch")]
+#[inline(always)]
+pub unsafe fn inotify_rm_watch(fd: int, wd: int) -> Result<int> {
+    syscall!(raw::INOTIFY_RM_WATCH, fd, wd)
+}
+
+/// Initializes a new inotify instance and returns a file descriptor associated
+/// with a new inotify event queue.
+#[cfg(have_syscall = "inotify_init1")]
+#[inline(always)]
+pub unsafe fn inotify_init1(flags: int) -> Result<int> {
+    syscall!(raw::INOTIFY_INIT1, flags)
 }
 
 /// Arbitrary requests for file descriptors representing devices.

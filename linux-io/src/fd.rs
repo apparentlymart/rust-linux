@@ -378,7 +378,7 @@ impl<Device> File<Device> {
     #[inline]
     pub unsafe fn bind_raw(
         &self,
-        addr: *const linux_unsafe::void,
+        addr: *const linux_unsafe::sockaddr,
         addrlen: linux_unsafe::socklen_t,
     ) -> Result<()> {
         let result = unsafe { linux_unsafe::bind(self.fd, addr, addrlen) };
@@ -396,7 +396,7 @@ impl<Device> File<Device> {
     #[inline]
     pub unsafe fn connect_raw(
         &self,
-        addr: *const linux_unsafe::void,
+        addr: *const linux_unsafe::sockaddr,
         addrlen: linux_unsafe::socklen_t,
     ) -> Result<()> {
         let result = unsafe { linux_unsafe::connect(self.fd, addr, addrlen) };

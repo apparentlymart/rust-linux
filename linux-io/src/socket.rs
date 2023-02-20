@@ -24,7 +24,8 @@ pub unsafe trait SockAddr {
     /// **Safety:** Caller must ensure that `self` remains valid throughout
     /// all use of the returned pointer and that use of it is consistent
     /// with a shared borrow.
-    unsafe fn sockaddr_raw_const(&self) -> (*const linux_unsafe::void, linux_unsafe::socklen_t);
+    unsafe fn sockaddr_raw_const(&self)
+        -> (*const linux_unsafe::sockaddr, linux_unsafe::socklen_t);
 
     /// Returns a raw mut pointer and the length of what it points to for
     /// use when retrieving a socket address from the kernel.
@@ -32,7 +33,8 @@ pub unsafe trait SockAddr {
     /// **Safety:** Caller must ensure that `self` remains valid throughout
     /// all use of the returned pointer and that use of it is consistent
     /// with a mutable borrow.
-    unsafe fn sockaddr_raw_mut(&mut self) -> (*mut linux_unsafe::void, linux_unsafe::socklen_t);
+    unsafe fn sockaddr_raw_mut(&mut self)
+        -> (*mut linux_unsafe::sockaddr, linux_unsafe::socklen_t);
 }
 
 /// Represents a socket protocol that is compatible with sockets belonging to
