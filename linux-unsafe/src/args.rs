@@ -1,7 +1,5 @@
 //! Supporting traits for preparing values to be system call arguments.
 
-use crate::types;
-
 /// Trait implemented by types that can be used as raw system call arguments.
 pub trait AsRawV: Copy {
     fn from_raw_result(raw: crate::raw::V) -> Self;
@@ -32,14 +30,16 @@ macro_rules! trivial_raw_v {
     };
 }
 
-trivial_raw_v!(types::int);
-trivial_raw_v!(types::uint);
-trivial_raw_v!(types::short);
-trivial_raw_v!(types::ushort);
-trivial_raw_v!(types::long);
-trivial_raw_v!(types::ulong);
-trivial_raw_v!(types::size_t);
-trivial_raw_v!(types::ssize_t);
+trivial_raw_v!(i8);
+trivial_raw_v!(u8);
+trivial_raw_v!(i16);
+trivial_raw_v!(u16);
+trivial_raw_v!(i32);
+trivial_raw_v!(u32);
+trivial_raw_v!(i64);
+trivial_raw_v!(u64);
+trivial_raw_v!(isize);
+trivial_raw_v!(usize);
 
 impl<T> AsRawV for *const T {
     #[inline(always)]

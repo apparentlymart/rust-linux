@@ -248,7 +248,6 @@ impl<Device> File<Device> {
             // splits the offset across two arguments.
             let raw_offs_high = ((raw_offs as u64) >> 32) as linux_unsafe::ulong;
             let raw_offs_low = (raw_offs as u64) as linux_unsafe::ulong;
-            use core::cell::UnsafeCell;
             let result: UnsafeCell<linux_unsafe::loff_t> = UnsafeCell::new(0);
             let result_ptr = result.get();
             let raw_whence = pos.for_raw_uwhence();

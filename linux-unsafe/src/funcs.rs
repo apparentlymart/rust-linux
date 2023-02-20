@@ -448,7 +448,7 @@ pub unsafe fn getrandom(buf: *mut void, buflen: size_t, flags: uint) -> Result<i
 
 /// Get the real GID, the effective GID, and the saved set-group-ID of the
 /// current process.
-#[cfg(have_syscall = "getresgid")]
+#[cfg(all(have_syscall = "getresgid", not(have_syscall = "getresgid32")))]
 #[inline(always)]
 pub unsafe fn getresgid(rgid: *mut gid_t, egid: *mut gid_t, sgid: *mut gid_t) -> Result<int> {
     syscall!(raw::GETRESGID, rgid, egid, sgid)
@@ -456,10 +456,30 @@ pub unsafe fn getresgid(rgid: *mut gid_t, egid: *mut gid_t, sgid: *mut gid_t) ->
 
 /// Get the real UID, the effective UID, and the saved set-user-ID of the
 /// current process.
-#[cfg(have_syscall = "getresuid")]
+///
+/// On this platform this function actually wraps the `getresgid32` system call.
+#[cfg(all(have_syscall = "getresgid32"))]
 #[inline(always)]
-pub unsafe fn getresuid(ruid: *mut gid_t, euid: *mut gid_t, suid: *mut gid_t) -> Result<int> {
+pub unsafe fn getresgid(rgid: *mut gid_t, egid: *mut gid_t, sgid: *mut gid_t) -> Result<int> {
+    syscall!(raw::GETRESGID32, rgid, egid, sgid)
+}
+
+/// Get the real UID, the effective UID, and the saved set-user-ID of the
+/// current process.
+#[cfg(all(have_syscall = "getresuid", not(have_syscall = "getresuid32")))]
+#[inline(always)]
+pub unsafe fn getresuid(ruid: *mut uid_t, euid: *mut uid_t, suid: *mut uid_t) -> Result<int> {
     syscall!(raw::GETRESUID, ruid, euid, suid)
+}
+
+/// Get the real UID, the effective UID, and the saved set-user-ID of the
+/// current process.
+///
+/// On this platform this function actually wraps the `getresuid32` system call.
+#[cfg(all(have_syscall = "getresuid32"))]
+#[inline(always)]
+pub unsafe fn getresuid(ruid: *mut uid_t, euid: *mut uid_t, suid: *mut uid_t) -> Result<int> {
+    syscall!(raw::GETRESUID32, ruid, euid, suid)
 }
 
 /// Get the session ID of a process, or of the current process if `pid` is zero.
@@ -510,10 +530,19 @@ pub unsafe fn gettid() -> pid_t {
 }
 
 /// Get the real user ID of the current process.
-#[cfg(have_syscall = "getuid")]
+#[cfg(all(have_syscall = "getuid", not(have_syscall = "getuid32")))]
 #[inline(always)]
 pub unsafe fn getuid() -> uid_t {
     raw::syscall0(raw::GETUID) as uid_t
+}
+
+/// Get the real user ID of the current process.
+///
+/// On this platform this function actually wraps the `getuid` system call.
+#[cfg(have_syscall = "getuid32")]
+#[inline(always)]
+pub unsafe fn getuid() -> uid_t {
+    raw::syscall0(raw::GETUID32) as uid_t
 }
 
 /// Adds a new watch, or modifies an existing watch, to an inotify event queue.
@@ -586,7 +615,7 @@ pub unsafe fn lseek(fd: int, offset: off_t, whence: int) -> Result<off_t> {
 }
 
 /// Map a file or device into memory.
-#[cfg(have_syscall = "mmap")]
+#[cfg(all(have_syscall = "mmap", not(have_syscall = "mmap2")))]
 #[inline(always)]
 pub unsafe fn mmap(
     addr: *mut void,
@@ -597,6 +626,27 @@ pub unsafe fn mmap(
     offset: off_t,
 ) -> Result<*mut void> {
     syscall!(raw::MMAP, addr, length, prot, flags, fd, offset)
+}
+
+/// Map a file or device into memory.
+///
+/// On this platform this actually wraps the `mmap2` system call, with the
+/// given offset adjusted to be a page-based rather than byte-based offset.
+#[cfg(have_syscall = "mmap2")]
+#[inline(always)]
+pub unsafe fn mmap(
+    addr: *mut void,
+    length: size_t,
+    prot: int,
+    flags: int,
+    fd: int,
+    offset: off_t,
+) -> Result<*mut void> {
+    // Note: Technically is isn't correct to just assume the page size is 4096,
+    // but in practice it is on all of the architectures we currently support
+    // that have MMAP2, so we can avoid the overhead of asking the kernel for
+    // its page size.
+    syscall!(raw::MMAP2, addr, length, prot, flags, fd, offset / 4096)
 }
 
 /// Remove a mapping previously created with [`mmap`].
