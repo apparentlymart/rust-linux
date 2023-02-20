@@ -95,6 +95,7 @@ pub const O_TMPFILE_MASK: int = 0o020000000 | O_DIRECTORY | O_CREAT;
 pub const O_NDELAY: int = O_NONBLOCK;
 
 /// A file descriptor request object for use with [`crate::poll`].
+#[derive(Clone, Copy, Debug)]
 #[repr(C)]
 pub struct pollfd {
     pub fd: int,
@@ -113,6 +114,7 @@ pub const POLLHUP: short = 0x0010;
 pub const POLLNVAL: short = 0x0020;
 
 /// A type used with [`crate::readv`] and [`crate::writev`].
+#[derive(Clone, Copy, Debug)]
 #[repr(C)]
 pub struct iovec {
     pub iov_base: *mut void,
@@ -120,6 +122,7 @@ pub struct iovec {
 }
 
 /// A type used with [`crate::epoll_ctl`].
+#[derive(Clone, Copy, Debug)]
 #[repr(C)]
 pub struct epoll_event {
     pub events: u32,
@@ -127,6 +130,7 @@ pub struct epoll_event {
 }
 
 /// A type used with [`crate::epoll_ctl`].
+#[derive(Clone, Copy)]
 #[repr(C)]
 pub union epoll_data {
     pub ptr: *mut void,
@@ -135,7 +139,14 @@ pub union epoll_data {
     pub u64: u64,
 }
 
+impl core::fmt::Debug for epoll_data {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("epoll_data").finish_non_exhaustive()
+    }
+}
+
 /// A type used with some [`crate::fcntl`] commands.
+#[derive(Clone, Copy, Debug)]
 #[repr(C)]
 pub struct flock {
     pub l_type: short,
@@ -153,6 +164,7 @@ pub struct flock {
 pub type sa_family_t = ushort;
 
 /// The type for representing socket communication model types.
+#[derive(Clone, Copy, Debug)]
 #[repr(C)]
 pub enum sock_type {
     SOCK_STREAM = 1,
@@ -162,6 +174,20 @@ pub enum sock_type {
     SOCK_SEQPACKET = 5,
     SOCK_DCCP = 6,
     SOCK_PACKET = 10,
+}
+
+/// Used for time in seconds.
+pub type time_t = long;
+
+/// Used for time in microseconds.
+pub type suseconds_t = long;
+
+/// Representation of time as separate seconds and subseconds.
+#[derive(Clone, Copy, Debug)]
+#[repr(C)]
+pub struct timeval {
+    tv_sec: long,
+    tv_uec: suseconds_t,
 }
 
 // Also include architecture-specific types.

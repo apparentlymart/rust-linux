@@ -1,7 +1,11 @@
 /// Address types for the IPv4 and IPv6 protocol families.
 pub mod ip;
 
+use core::mem::size_of;
+
 pub use linux_unsafe::sock_type;
+
+use crate::fd::ioctl::{ioctl_read, IoctlReqRead, _IOR};
 
 /// A trait implemented by all socket address types.
 ///
@@ -103,3 +107,17 @@ impl<Device: crate::fd::ioctl::IoDevice> SocketProtocol for SocketProtocolFixed<
 pub struct SocketDevice;
 
 impl crate::fd::ioctl::IoDevice for SocketDevice {}
+
+const SOCK_IOC_TYPE: linux_unsafe::ulong = 0x89;
+
+/// `ioctl` request to retrieve a `struct timeval` with the receive timestamp
+/// of the last packet passed to the user.
+pub const SIOCGSTAMP: IoctlReqRead<SocketDevice, linux_unsafe::timeval> = unsafe {
+    ioctl_read(_IOR(
+        SOCK_IOC_TYPE,
+        0x06,
+        // This size is expressed in the kernel as sizeof(long long[2]), rather
+        // than as "struct timeval".
+        (size_of::<core::ffi::c_longlong>() * 2) as linux_unsafe::ulong,
+    ))
+};
