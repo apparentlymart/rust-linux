@@ -350,6 +350,30 @@ pub unsafe fn getcwd(buf: *mut char, size: size_t) -> Result<*mut char> {
     syscall!(raw::GETCWD, buf, size)
 }
 
+/// Get directory entries.
+///
+/// Up to `count` bytes will be written starting at pointer `dirp`. The data
+/// written there will be a series of variable-sized [`linux_dirent`] values,
+/// and the return value is the number of bytes of the buffer that represent
+/// valid entries of that type.
+#[cfg(have_syscall = "getdents")]
+#[inline(always)]
+pub unsafe fn getdents(fd: int, dirp: *mut void, count: int) -> Result<int> {
+    syscall!(raw::GETDENTS, fd, dirp as *mut void, count)
+}
+
+/// Get directory entries using the new 64-bit structure type.
+///
+/// Up to `count` bytes will be written starting at pointer `dirp`. The data
+/// written there will be a series of variable-sized [`linux_dirent64`] values,
+/// and the return value is the number of bytes of the buffer that represent
+/// valid entries of that type.
+#[cfg(have_syscall = "getdents64")]
+#[inline(always)]
+pub unsafe fn getdents64(fd: int, dirp: *mut void, count: int) -> Result<int> {
+    syscall!(raw::GETDENTS, fd, dirp as *mut void, count)
+}
+
 /// Get the process id (PID) of the current process.
 #[cfg(have_syscall = "getpid")]
 #[inline(always)]

@@ -20,6 +20,12 @@ pub type long = ffi::c_long;
 /// The unsigned long integer type for the current platform.
 pub type ulong = ffi::c_ulong;
 
+/// The signed long long integer type for the current platform.
+pub type longlong = ffi::c_long;
+
+/// The unsigned long long integer type for the current platform.
+pub type ulonglong = ffi::c_ulong;
+
 /// The signed size type (or "pointer difference" type) for the current platform.
 pub type ssize_t = isize;
 
@@ -28,6 +34,9 @@ pub type size_t = usize;
 
 /// The type used for characters on the current platform.
 pub type char = ffi::c_char;
+
+/// The type used for unsigned characters on the current platform.
+pub type uchar = ffi::c_uchar;
 
 /// The type used for void pointers on the current platform.
 pub type void = ffi::c_void;
@@ -188,6 +197,33 @@ pub type suseconds_t = long;
 pub struct timeval {
     tv_sec: long,
     tv_uec: suseconds_t,
+}
+
+/// Used for [`crate::getdents`].
+#[derive(Debug)]
+#[repr(C)]
+pub struct linux_dirent {
+    pub d_ino: ulong,
+    pub d_off: ulong,
+    pub d_reclen: ushort,
+    pub d_name: [char],
+}
+
+/// 64-bit offset.
+pub type off64_t = longlong;
+
+// 64-bit inode number.
+pub type ino64_t = ulonglong;
+
+/// Used for [`crate::getdents64`].
+#[derive(Debug)]
+#[repr(C)]
+pub struct linux_dirent64 {
+    pub d_ino: ino64_t,
+    pub d_off: off64_t,
+    pub d_reclen: ushort,
+    pub d_type: uchar,
+    pub d_name: [char],
 }
 
 // Also include architecture-specific types.
