@@ -114,10 +114,19 @@ pub unsafe fn chmod(pathname: *const char, mode: mode_t) -> Result<int> {
 }
 
 /// Change ownership of a file.
-#[cfg(have_syscall = "chown")]
+#[cfg(all(have_syscall = "chown", not(have_syscall = "chown32")))]
 #[inline(always)]
 pub unsafe fn chown(pathname: *const char, owner: uid_t, group: gid_t) -> Result<int> {
     syscall!(raw::CHOWN, pathname, owner, group)
+}
+
+/// Change ownership of a file.
+///
+/// On this platform this is actually a wrapper around the `chown32` system call.
+#[cfg(have_syscall = "chown32")]
+#[inline(always)]
+pub unsafe fn chown(pathname: *const char, owner: uid_t, group: gid_t) -> Result<int> {
+    syscall!(raw::CHOWN32, pathname, owner, group)
 }
 
 /// Change the root directory.
@@ -581,6 +590,67 @@ pub unsafe fn inotify_init1(flags: int) -> Result<int> {
     syscall!(raw::INOTIFY_INIT1, flags)
 }
 
+/// Initiate and complete I/O using the shared submission and completion queues
+/// for an io_uring instance.
+#[cfg(have_syscall = "io_uring_enter")]
+#[inline(always)]
+pub unsafe fn io_uring_enter(
+    fd: int,
+    to_submit: uint,
+    min_complete: uint,
+    flags: uint,
+    sig: *mut sigset_t,
+) -> Result<int> {
+    syscall!(raw::IO_URING_ENTER, fd, to_submit, min_complete, flags, sig)
+}
+
+/// Initiate and complete I/O using the shared submission and completion queues
+/// for an io_uring instance.
+#[cfg(have_syscall = "io_uring_enter2")]
+#[inline(always)]
+pub unsafe fn io_uring_enter2(
+    fd: int,
+    to_submit: uint,
+    min_complete: uint,
+    flags: uint,
+    sig: *mut sigset_t,
+    sz: size_t,
+) -> Result<int> {
+    syscall!(
+        raw::IO_URING_ENTER2,
+        fd,
+        to_submit,
+        min_complete,
+        flags,
+        sig,
+        sz,
+    )
+}
+
+/// Registers resources for use with an io_uring instance.
+#[cfg(have_syscall = "io_uring_register")]
+#[inline(always)]
+pub unsafe fn io_uring_register(
+    fd: int,
+    opcode: uint,
+    arg: *mut void,
+    nr_args: uint,
+) -> Result<int> {
+    syscall!(raw::IO_URING_REGISTER, fd, opcode, arg, nr_args)
+}
+
+/// Sets up an io_uring instance.
+///
+/// The instance will have submission and completion queues of at least
+/// `entries` entries. The result is a file descriptor to be used with [`mmap`]
+/// to establish the shared memory buffers, and with [`io_uring_enter`] and
+/// [`io_uring_register`].
+#[cfg(have_syscall = "io_uring_setup")]
+#[inline(always)]
+pub unsafe fn io_uring_setup(entries: u32, p: *mut io_uring_params) -> Result<int> {
+    syscall!(raw::IO_URING_SETUP, entries, p)
+}
+
 /// Arbitrary requests for file descriptors representing devices.
 ///
 /// This system call is _particularly_ unsafe, because the final argument
@@ -598,6 +668,50 @@ pub unsafe fn ioctl(fd: int, request: ulong, arg: impl crate::args::AsRawV) -> R
     } else {
         syscall!(raw::IOCTL, fd, request, arg)
     }
+}
+
+/// Send a signal to a process.
+#[cfg(have_syscall = "kill")]
+#[inline(always)]
+pub unsafe fn kill(pid: pid_t, sig: int) -> Result<int> {
+    syscall!(raw::KILL, pid, sig)
+}
+
+/// Change ownership of a file without dereferencing symbolic links.
+#[cfg(all(have_syscall = "lchown", not(have_syscall = "lchown32")))]
+#[inline(always)]
+pub unsafe fn lchown(pathname: *const char, owner: uid_t, group: gid_t) -> Result<int> {
+    syscall!(raw::LCHOWN, pathname, owner, group)
+}
+
+/// Change ownership of a file without dereferencing symbolic links.
+///
+/// On this platform this is actually a wrapper around the `lchown32` system call.
+#[cfg(have_syscall = "lchown32")]
+#[inline(always)]
+pub unsafe fn lchown(pathname: *const char, owner: uid_t, group: gid_t) -> Result<int> {
+    syscall!(raw::LCHOWN32, pathname, owner, group)
+}
+
+/// Create a new link (a "hard link") for an existing file.
+#[cfg(have_syscall = "link")]
+#[inline(always)]
+pub unsafe fn link(oldpath: *const char, newpath: *const char) -> Result<int> {
+    syscall!(raw::LINK, oldpath, newpath)
+}
+
+/// Create a new link (a "hard link") for an existing file relative to
+/// directory file descriptors.
+#[cfg(have_syscall = "linkat")]
+#[inline(always)]
+pub unsafe fn linkat(
+    olddirfd: int,
+    oldpath: *const char,
+    newdirfd: int,
+    newpath: *const char,
+    flags: int,
+) -> Result<int> {
+    syscall!(raw::LINKAT, olddirfd, oldpath, newdirfd, newpath, flags)
 }
 
 /// Listen for connections on a socket.
@@ -656,11 +770,48 @@ pub unsafe fn munmap(addr: *mut void, length: size_t) -> Result<*mut void> {
     syscall!(raw::MUNMAP, addr, length)
 }
 
+/// Change a memory mapping previously created with [`mmap`].
+///
+/// The `new_address` argument is used only if `flags` includes `MREMAP_FIXED`.
+/// Set it to null if unused.
+#[cfg(have_syscall = "mremap")]
+#[inline(always)]
+pub unsafe fn mremap(
+    old_address: *mut void,
+    old_size: size_t,
+    new_size: size_t,
+    flags: int,
+    new_address: *mut void,
+) -> Result<*mut void> {
+    syscall!(
+        raw::MREMAP,
+        old_address,
+        old_size,
+        new_size,
+        flags,
+        new_address
+    )
+}
+
+/// Pause the current process until a signal is delivered.
+#[cfg(have_syscall = "pause")]
+#[inline(always)]
+pub unsafe fn pause() -> Result<int> {
+    syscall!(raw::PAUSE)
+}
+
 /// Open a file.
 #[cfg(have_syscall = "open")]
 #[inline(always)]
 pub unsafe fn open(pathname: *const char, flags: int, mode: mode_t) -> Result<int> {
     syscall!(raw::OPEN, pathname, flags, mode)
+}
+
+/// Create a file descriptor representing a process.
+#[cfg(have_syscall = "pidfd_open")]
+#[inline(always)]
+pub unsafe fn pidfd_open(pid: pid_t, flags: uint) -> Result<int> {
+    syscall!(raw::PIDFD_OPEN, pid, flags)
 }
 
 /// Create pipe.
@@ -677,11 +828,43 @@ pub unsafe fn pipe2(fds: *mut int, flags: int) -> Result<int> {
     syscall!(raw::PIPE2, fds, flags)
 }
 
+/// Changes the root mount in the mount namespace of the calling process.
+#[cfg(have_syscall = "pivot_root")]
+#[inline(always)]
+pub unsafe fn pivot_root(new_root: *const char, put_old: *const char) -> Result<int> {
+    syscall!(raw::PIVOT_ROOT, new_root, put_old)
+}
+
 /// Wait for events on one or more file descriptors.
 #[cfg(have_syscall = "poll")]
 #[inline(always)]
 pub unsafe fn poll(fds: *mut pollfd, nfds: nfds_t, timeout: int) -> Result<int> {
     syscall!(raw::POLL, fds, nfds, timeout)
+}
+
+/// Wait for events on one or more file descriptors while also awaiting signals.
+#[cfg(have_syscall = "ppoll")]
+#[inline(always)]
+pub unsafe fn ppoll(
+    fds: *mut pollfd,
+    nfds: nfds_t,
+    tmo_p: *const timespec,
+    sigmask: *const sigset_t,
+) -> Result<int> {
+    syscall!(raw::PPOLL, fds, nfds, tmo_p, sigmask)
+}
+
+/// Manipulates various aspects of the behavior of the calling thread or process.
+#[cfg(have_syscall = "prctl")]
+#[inline(always)]
+pub unsafe fn prctl(
+    option: int,
+    arg2: ulong,
+    arg3: ulong,
+    arg4: ulong,
+    arg5: ulong,
+) -> Result<int> {
+    syscall!(raw::PRCTL, option, arg2, arg3, arg4, arg5)
 }
 
 /// Read from a file descriptor.
@@ -711,11 +894,57 @@ pub unsafe fn setsockopt(
     syscall!(raw::SETSOCKOPT, sockfd, level, optname, optval, optlen)
 }
 
+/// Copies data between one file descriptor and another.
+#[cfg(have_syscall = "sendfile")]
+#[inline(always)]
+pub unsafe fn sendfile(out_fd: int, in_fd: int, offset: *mut off_t, count: size_t) -> Result<int> {
+    syscall!(raw::SENDFILE, out_fd, in_fd, offset, count)
+}
+
+/// Copies data between one file descriptor and another.
+#[cfg(have_syscall = "sendfile64")]
+#[inline(always)]
+pub unsafe fn sendfile64(
+    out_fd: int,
+    in_fd: int,
+    offset: *mut loff_t,
+    count: size_t,
+) -> Result<int> {
+    syscall!(raw::SENDFILE64, out_fd, in_fd, offset, count)
+}
+
 /// Create a socket endpoint for communication.
 #[cfg(have_syscall = "socket")]
 #[inline(always)]
 pub unsafe fn socket(family: sa_family_t, typ: sock_type, protocol: int) -> Result<int> {
     syscall!(raw::SOCKET, family, typ as u32, protocol)
+}
+
+/// Create an unnamed pair of connected sockets.
+#[cfg(have_syscall = "socketpair")]
+#[inline(always)]
+pub unsafe fn socketpair(
+    family: sa_family_t,
+    typ: sock_type,
+    protocol: int,
+    sv: *mut [int; 2],
+) -> Result<int> {
+    syscall!(raw::SOCKETPAIR, family, typ as u32, protocol, sv)
+}
+
+/// Moves data between two file descriptors without copying between kernel
+/// address space and user address space.
+#[cfg(have_syscall = "splice")]
+#[inline(always)]
+pub unsafe fn splice(
+    fd_in: int,
+    off_in: *mut off64_t,
+    fd_out: int,
+    off_out: *mut off64_t,
+    len: size_t,
+    flags: uint,
+) -> Result<int> {
+    syscall!(raw::SPLICE, fd_in, off_in, fd_out, off_out, len, flags)
 }
 
 /// Commit all filesystem caches to disk.
@@ -730,6 +959,13 @@ pub unsafe fn sync() {
 #[inline(always)]
 pub unsafe fn syncfs(fd: int) -> Result<int> {
     syscall!(raw::SYNCFS, fd)
+}
+
+/// Duplicates data between file descriptors without consuming the data at the source.
+#[cfg(have_syscall = "tee")]
+#[inline(always)]
+pub unsafe fn tee(fd_in: int, fd_out: int, len: size_t, flags: uint) -> Result<int> {
+    syscall!(raw::TEE, fd_in, fd_out, len, flags)
 }
 
 /// Truncate a file to a specified length.

@@ -223,12 +223,20 @@ pub type time_t = long;
 /// Used for time in microseconds.
 pub type suseconds_t = long;
 
-/// Representation of time as separate seconds and subseconds.
+/// Representation of time as separate seconds and nanoseconds.
+#[derive(Clone, Copy, Debug)]
+#[repr(C)]
+pub struct timespec {
+    tv_sec: long,
+    tv_nsec: long,
+}
+
+/// Representation of time as separate seconds and microseconds.
 #[derive(Clone, Copy, Debug)]
 #[repr(C)]
 pub struct timeval {
     tv_sec: long,
-    tv_uec: suseconds_t,
+    tv_usec: suseconds_t,
 }
 
 /// Used for [`crate::getdents`].
@@ -257,6 +265,52 @@ pub struct linux_dirent64 {
     pub d_type: uchar,
     pub d_name: [char],
 }
+
+/// Used for [`crate::io_uring_setup`].
+#[derive(Clone, Copy, Debug)]
+#[repr(C)]
+pub struct io_uring_params {
+    pub sq_entries: u32,
+    pub cq_entries: u32,
+    pub flags: u32,
+    pub sq_thread_cpu: u32,
+    pub sq_thread_idle: u32,
+    pub features: u32,
+    pub wq_fd: u32,
+    pub resv: [u32; 3],
+    pub sq_off: io_sqring_offsets,
+    pub cq_off: io_cqring_offsets,
+}
+
+/// Used with [`io_uring_params`].
+#[derive(Clone, Copy, Debug)]
+#[repr(C)]
+pub struct io_sqring_offsets {
+    pub head: u32,
+    pub tail: u32,
+    pub ring_mask: u32,
+    pub ring_entries: u32,
+    pub flags: u32,
+    pub dropped: u32,
+    pub array: u32,
+    pub resv: [u32; 3],
+}
+
+/// Used with [`io_uring_params`].
+#[derive(Clone, Copy, Debug)]
+#[repr(C)]
+pub struct io_cqring_offsets {
+    pub head: u32,
+    pub tail: u32,
+    pub ring_mask: u32,
+    pub ring_entries: u32,
+    pub overflow: u32,
+    pub cqes: u32,
+    pub flags: u32,
+    pub resv: [u32; 3],
+}
+
+pub use crate::sigset::sigset_t;
 
 // Also include architecture-specific types.
 pub use crate::raw::types::*;
