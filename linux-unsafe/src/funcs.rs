@@ -380,7 +380,7 @@ pub unsafe fn getdents(fd: int, dirp: *mut void, count: int) -> Result<int> {
 #[cfg(have_syscall = "getdents64")]
 #[inline(always)]
 pub unsafe fn getdents64(fd: int, dirp: *mut void, count: int) -> Result<int> {
-    syscall!(raw::GETDENTS, fd, dirp as *mut void, count)
+    syscall!(raw::GETDENTS64, fd, dirp as *mut void, count)
 }
 
 /// Get the effective group ID of the current process.
