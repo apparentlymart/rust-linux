@@ -122,6 +122,9 @@ pub fn unpack_standard_result(raw: V) -> Result<V, i32> {
 }
 
 include!(concat!(env!("OUT_DIR"), "/syscall_nrs_x86.rs"));
+pub(crate) mod errno {
+    include!(concat!(env!("OUT_DIR"), "/errnos_x86.rs"));
+}
 
 // Architecture-specific types and constants
 pub(crate) mod types {}

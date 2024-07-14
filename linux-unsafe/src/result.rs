@@ -29,3 +29,5 @@ pub(crate) fn prepare_standard_result<T: AsRawV>(raw: crate::raw::V) -> Result<T
 pub(crate) fn prepare_arg<T: AsRawV>(arg: T) -> crate::raw::V {
     arg.to_raw_arg()
 }
+
+pub use crate::raw::errno::*;

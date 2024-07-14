@@ -54,3 +54,5 @@ impl Into<std::io::Error> for Error {
         self.into_std_io_error()
     }
 }
+
+linux_unsafe::result::errno_derived_consts!(Error, Error);
