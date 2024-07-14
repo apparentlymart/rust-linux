@@ -70,7 +70,8 @@ impl File<()> {
     ) -> Result<Self> {
         let path_raw = path.as_ptr() as *const linux_unsafe::char;
         let result = unsafe {
-            linux_unsafe::open(
+            linux_unsafe::openat(
+                linux_unsafe::AT_FDCWD,
                 path_raw,
                 flags as linux_unsafe::int,
                 mode as linux_unsafe::mode_t,
@@ -88,7 +89,14 @@ impl File<()> {
     #[inline]
     pub fn create_raw(path: &CStr, mode: linux_unsafe::mode_t) -> Result<Self> {
         let path_raw = path.as_ptr() as *const linux_unsafe::char;
-        let result = unsafe { linux_unsafe::creat(path_raw, mode as linux_unsafe::mode_t) };
+        let result = unsafe {
+            linux_unsafe::openat(
+                linux_unsafe::AT_FDCWD,
+                path_raw,
+                linux_unsafe::O_CREAT | linux_unsafe::O_WRONLY | linux_unsafe::O_TRUNC,
+                mode as linux_unsafe::mode_t,
+            )
+        };
         result
             .map(|fd| unsafe { Self::from_raw_fd(fd as linux_unsafe::int) })
             .map_err(|e| e.into())

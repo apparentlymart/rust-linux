@@ -1,4 +1,4 @@
-use core::cell::UnsafeCell;
+use core::{cell::UnsafeCell, ptr::null};
 
 use crate::result::{Error, Result};
 
@@ -128,8 +128,8 @@ impl PollResponse {
     }
 }
 
-/// `poll` wraps the Linux system call of the same name, passing all of the
-/// given requests to the kernel.
+/// `poll` wraps the Linux system call of the same name, or at least one
+/// with a similar name, passing all of the given requests to the kernel.
 ///
 /// *Warning:* This abstraction doesn't really work because the lifetime
 /// bounds on `PollRequest` make the `File` objects unusable once the are
@@ -158,6 +158,13 @@ pub fn poll(reqs: &mut [PollRequest], timeout: linux_unsafe::int) -> Result<linu
         return Err(Error::new(22)); // hard-coded EINVAL value (TODO: expose this as a constant from linux-unsafe instead?)
     }
     let reqs_count = reqs.len() as linux_unsafe::nfds_t;
-    let result = unsafe { linux_unsafe::poll(reqs_ptr, reqs_count, timeout) };
+    // We actually use ppoll rather than poll, because poll is not
+    // available on recently-added architectures like riscv64.
+    let tmo = linux_unsafe::timespec {
+        tv_sec: (timeout / 1000) as linux_unsafe::long,
+        tv_nsec: ((timeout % 1000) * 1_000_000) as linux_unsafe::long,
+    };
+    let tmo_p = &tmo as *const _;
+    let result = unsafe { linux_unsafe::ppoll(reqs_ptr, reqs_count, tmo_p, null()) };
     result.map(|count| count as _).map_err(|e| e.into())
 }

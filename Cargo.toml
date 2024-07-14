@@ -1,7 +1,3 @@
 [workspace]
-members = [
-  "demo-bin",
-  "linux-io",
-  "linux-kvm",
-  "linux-unsafe",
-]
+resolver = "2"
+members = ["demo-bin", "linux-io", "linux-kvm", "linux-unsafe"]

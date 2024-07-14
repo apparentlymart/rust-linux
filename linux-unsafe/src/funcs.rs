@@ -801,10 +801,21 @@ pub unsafe fn pause() -> Result<int> {
 }
 
 /// Open a file.
+///
+/// **Warning:** This function is not available on architectures recently added
+/// to the kernel. Use [`openat`] instead (using [`crate::AT_FDCWD`] as `dirfd`) for
+/// better portability.
 #[cfg(have_syscall = "open")]
 #[inline(always)]
 pub unsafe fn open(pathname: *const char, flags: int, mode: mode_t) -> Result<int> {
     syscall!(raw::OPEN, pathname, flags, mode)
+}
+
+/// Open a file.
+#[cfg(have_syscall = "openat")]
+#[inline(always)]
+pub unsafe fn openat(dirfd: int, pathname: *const char, flags: int, mode: mode_t) -> Result<int> {
+    syscall!(raw::OPENAT, dirfd, pathname, flags, mode)
 }
 
 /// Create a file descriptor representing a process.

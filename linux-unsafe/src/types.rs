@@ -135,6 +135,9 @@ pub const O_TMPFILE: int = 0o020000000 | O_DIRECTORY;
 pub const O_TMPFILE_MASK: int = 0o020000000 | O_DIRECTORY | O_CREAT;
 pub const O_NDELAY: int = O_NONBLOCK;
 
+pub const AT_FDCWD: int = -100;
+pub const AT_EMPTY_PATH: int = 0x1000;
+
 /// A file descriptor request object for use with [`crate::poll`].
 #[derive(Clone, Copy, Debug)]
 #[repr(C)]
@@ -227,16 +230,16 @@ pub type suseconds_t = long;
 #[derive(Clone, Copy, Debug)]
 #[repr(C)]
 pub struct timespec {
-    tv_sec: long,
-    tv_nsec: long,
+    pub tv_sec: long,
+    pub tv_nsec: long,
 }
 
 /// Representation of time as separate seconds and microseconds.
 #[derive(Clone, Copy, Debug)]
 #[repr(C)]
 pub struct timeval {
-    tv_sec: long,
-    tv_usec: suseconds_t,
+    pub tv_sec: long,
+    pub tv_usec: suseconds_t,
 }
 
 /// Used for [`crate::getdents`].
@@ -313,4 +316,5 @@ pub struct io_cqring_offsets {
 pub use crate::sigset::sigset_t;
 
 // Also include architecture-specific types.
+#[allow(unused_imports)]
 pub use crate::raw::types::*;
