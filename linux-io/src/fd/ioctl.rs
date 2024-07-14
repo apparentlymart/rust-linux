@@ -60,7 +60,7 @@ unsafe impl<T: IoDevice> SubDevice<T> for T {}
 ///
 /// Safety: Implementers must ensure that they only generate valid combinations
 /// of `ioctl` request and raw argument.
-pub unsafe trait IoctlReq<'a, Device: IoDevice> {
+pub unsafe trait IoctlReq<'a, Device: IoDevice>: Copy {
     /// The type that the caller will provide when using this `ioctl` command.
     ///
     /// Use `()` for requests that don't need a caller-provided argument, such
@@ -130,8 +130,8 @@ where
 /// provide.
 ///
 /// Safety: Callers must ensure that the given `request` is valid, that
-/// type `T` describes what this request expects to get a pointer to, and
-/// that the kernel will populate the given `T` object with data that is
+/// type `Arg` describes what this request expects to get a pointer to, and
+/// that the kernel will populate the given `Arg` object with data that is
 /// consistent with Rust's expectations for the given type.
 pub const unsafe fn ioctl_read<Device, Result>(request: ulong) -> IoctlReqRead<Device, Result>
 where
@@ -150,7 +150,7 @@ where
 /// its argument, without any pointer indirection.
 ///
 /// Safety: Callers must ensure that the given `request` is valid, that
-/// type `T` describes what this request expects to get as its argument.
+/// type `Arg` describes what this request expects to get as its argument.
 pub const unsafe fn ioctl_write_val<Device, Arg, Result>(
     request: ulong,
 ) -> IoctlReqWriteVal<Device, Arg, Result>
@@ -170,7 +170,7 @@ where
 /// to receive a pointer to.
 ///
 /// Safety: Callers must ensure that the given `request` is valid, that
-/// type `T` describes what this request expects to get a pointer to, and
+/// type `Arg` describes what this request expects to get a pointer to, and
 /// that it isn't possible for any value of that type to cause the kernel
 /// to violate memory safety. In particular, the kernel must not modify
 /// the given memory, because the safe caller will provide a shared reference.
@@ -188,6 +188,29 @@ where
     }
 }
 
+/// Constructs a new write/read [`IoctlReq`] with a fixed request code
+/// and an argument type that maps directly to the data the kernel
+/// expects to recieve a pointer to.
+///
+/// Safety: Callers must ensure that the given `request` is valid, that
+/// type `Arg` describes what this request expects to get a mutable pointer to,
+/// and that it isn't possible for any value of that type to cause the kernel
+/// to violate memory safety. In particular, the kernel must only write
+/// valid bit patterns into the object that the pointer refers to.
+pub const unsafe fn ioctl_writeread<Device, Arg, Result>(
+    request: ulong,
+) -> IoctlReqWriteRead<Device, Arg, Result>
+where
+    *mut Result: AsRawV,
+    Device: IoDevice,
+    Result: Copy,
+{
+    IoctlReqWriteRead::<Device, Arg, Result> {
+        request,
+        _phantom: core::marker::PhantomData,
+    }
+}
+
 /// Implementation of [`IoctlReq`] with a fixed `cmd` and passing no arguments
 /// at all, just returning the kernel's result value.
 ///
@@ -198,6 +221,16 @@ pub struct IoctlReqNoArgs<Device: IoDevice, Result> {
     request: ulong,
     _phantom: core::marker::PhantomData<(Device, Result)>,
 }
+
+impl<Device: IoDevice, Result> Clone for IoctlReqNoArgs<Device, Result> {
+    fn clone(&self) -> Self {
+        Self {
+            request: self.request,
+            _phantom: core::marker::PhantomData,
+        }
+    }
+}
+impl<Device: IoDevice, Result> Copy for IoctlReqNoArgs<Device, Result> {}
 
 unsafe impl<'a, Device, Result> IoctlReq<'a, Device> for IoctlReqNoArgs<Device, Result>
 where
@@ -242,6 +275,16 @@ where
     _phantom: core::marker::PhantomData<(Device, Result)>,
 }
 
+impl<Device: IoDevice, Result: Copy> Clone for IoctlReqRead<Device, Result> {
+    fn clone(&self) -> Self {
+        Self {
+            request: self.request,
+            _phantom: core::marker::PhantomData,
+        }
+    }
+}
+impl<Device: IoDevice, Result: Copy> Copy for IoctlReqRead<Device, Result> {}
+
 unsafe impl<'a, Device, Result> IoctlReq<'a, Device> for IoctlReqRead<Device, Result>
 where
     *mut Result: AsRawV,
@@ -283,6 +326,16 @@ where
     request: ulong,
     _phantom: core::marker::PhantomData<(Device, Arg, Result)>,
 }
+
+impl<Device: IoDevice, Arg: AsRawV, Result> Clone for IoctlReqWriteVal<Device, Arg, Result> {
+    fn clone(&self) -> Self {
+        Self {
+            request: self.request,
+            _phantom: core::marker::PhantomData,
+        }
+    }
+}
+impl<Device: IoDevice, Arg: AsRawV, Result> Copy for IoctlReqWriteVal<Device, Arg, Result> {}
 
 unsafe impl<'a, Device, Arg, Result> IoctlReq<'a, Device> for IoctlReqWriteVal<Device, Arg, Result>
 where
@@ -326,6 +379,16 @@ where
     _phantom: core::marker::PhantomData<(Device, Arg, Result)>,
 }
 
+impl<Device: IoDevice, Arg, Result> Clone for IoctlReqWrite<Device, Arg, Result> {
+    fn clone(&self) -> Self {
+        Self {
+            request: self.request,
+            _phantom: core::marker::PhantomData,
+        }
+    }
+}
+impl<Device: IoDevice, Arg, Result> Copy for IoctlReqWrite<Device, Arg, Result> {}
+
 unsafe impl<'a, Device, Arg, Result> IoctlReq<'a, Device> for IoctlReqWrite<Device, Arg, Result>
 where
     *const Arg: AsRawV,
@@ -345,6 +408,57 @@ where
         _: &mut MaybeUninit<Self::TempMem>,
     ) -> (ulong, *const Arg) {
         (self.request, (*arg) as *const Arg)
+    }
+
+    #[inline(always)]
+    fn prepare_ioctl_result(
+        &self,
+        ret: int,
+        _: &Self::ExtArg,
+        _: &MaybeUninit<Self::TempMem>,
+    ) -> Self::Result {
+        Result::from_ioctl_result(&ret)
+    }
+}
+
+#[repr(transparent)]
+pub struct IoctlReqWriteRead<Device: IoDevice, Arg, Result = int>
+where
+    *const Arg: AsRawV,
+{
+    request: ulong,
+    _phantom: core::marker::PhantomData<(Device, Arg, Result)>,
+}
+
+impl<Device: IoDevice, Arg, Result> Clone for IoctlReqWriteRead<Device, Arg, Result> {
+    fn clone(&self) -> Self {
+        Self {
+            request: self.request,
+            _phantom: core::marker::PhantomData,
+        }
+    }
+}
+impl<Device: IoDevice, Arg, Result> Copy for IoctlReqWriteRead<Device, Arg, Result> {}
+
+unsafe impl<'a, Device, Arg, Result> IoctlReq<'a, Device> for IoctlReqWriteRead<Device, Arg, Result>
+where
+    Device: IoDevice + 'a,
+    *const Arg: AsRawV,
+    Arg: 'a,
+    Result: 'a + FromIoctlResult<int>,
+{
+    type ExtArg = &'a mut Arg;
+    type TempMem = ();
+    type RawArg = *mut Arg;
+    type Result = Result;
+
+    #[inline(always)]
+    fn prepare_ioctl_args(
+        &self,
+        arg: &Self::ExtArg,
+        _: &mut MaybeUninit<Self::TempMem>,
+    ) -> (ulong, *mut Arg) {
+        (self.request, (*arg) as *const Arg as *mut Arg)
     }
 
     #[inline(always)]
