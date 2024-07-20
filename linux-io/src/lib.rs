@@ -40,5 +40,8 @@ pub mod tty;
 /// Socket address manipulation, socket device ioctls, etc.
 pub mod socket;
 
+/// Synchronization primitives built using Linux kernel features.
+pub mod sync;
+
 #[cfg(test)]
 mod tests;

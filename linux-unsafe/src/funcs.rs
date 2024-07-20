@@ -345,6 +345,20 @@ pub unsafe fn ftruncate(fd: int, length: off_t) -> Result<int> {
     syscall!(raw::FTRUNCATE, fd, length)
 }
 
+/// Interact with the kernel's "fast userspace locking" mechanism.
+#[cfg(have_syscall = "futex")]
+#[inline(always)]
+pub unsafe fn futex(
+    uaddr: *const u32,
+    futex_op: int,
+    val: u32,
+    val2: crate::raw::V,
+    uaddr2: *const u32,
+    val3: u32,
+) -> Result<int> {
+    syscall!(raw::FUTEX, uaddr, futex_op, val, val2, uaddr2, val3)
+}
+
 /// Determine CPU and NUMA node on which the calling thread is running.
 #[cfg(have_syscall = "getcpu")]
 #[inline(always)]

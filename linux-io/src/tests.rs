@@ -334,3 +334,28 @@ fn socket_setsockopt() {
         .expect("failed to getsockopt");
     assert_eq!(dontroute, 1, "SO_DONTROUTE is not set after we set it");
 }
+
+#[test]
+fn futex_mutex() {
+    use crate::sync::Mutex;
+    use std::sync::Arc;
+    use std::thread;
+
+    let m1 = Arc::new(Mutex::new(0_usize));
+    let m2 = Arc::clone(&m1);
+    let m3 = Arc::clone(&m1);
+
+    let join1 = thread::spawn(move || {
+        let mut g = m1.lock();
+        *g += 1;
+    });
+    let join2 = thread::spawn(move || {
+        let mut g = m2.lock();
+        *g += 1;
+    });
+    join1.join().unwrap();
+    join2.join().unwrap();
+
+    let g = m3.lock();
+    std::assert_eq!(*g, 2, "wrong final value");
+}

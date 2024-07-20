@@ -318,3 +318,16 @@ pub use crate::sigset::sigset_t;
 // Also include architecture-specific types.
 #[allow(unused_imports)]
 pub use crate::raw::types::*;
+
+pub const FUTEX_WAIT: int = 0;
+pub const FUTEX_WAKE: int = 1;
+pub const FUTEX_FD: int = 2;
+pub const FUTEX_REQUEUE: int = 3;
+pub const FUTEX_CMP_REQUEUE: int = 4;
+pub const FUTEX_WAKE_OP: int = 5;
+pub const FUTEX_LOCK_PI: int = 6;
+pub const FUTEX_UNLOCK_PI: int = 7;
+pub const FUTEX_TRYLOCK_PI: int = 8;
+pub const FUTEX_WAIT_BITSET: int = 9;
+pub const FUTEX_PRIVATE: int = 128;
+pub const FUTEX_CLOCK_REALTIME: int = 256;
