@@ -351,10 +351,10 @@ pub unsafe fn ftruncate(fd: int, length: off_t) -> Result<int> {
 pub unsafe fn futex(
     uaddr: *const u32,
     futex_op: int,
-    val: u32,
-    val2: crate::raw::V,
+    val: impl crate::args::AsRawV,
+    val2: impl crate::args::AsRawV,
     uaddr2: *const u32,
-    val3: u32,
+    val3: impl crate::args::AsRawV,
 ) -> Result<int> {
     syscall!(raw::FUTEX, uaddr, futex_op, val, val2, uaddr2, val3)
 }
