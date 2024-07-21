@@ -139,6 +139,11 @@ impl File<()> {
             .map(|fd| unsafe { File::from_raw_fd(fd as linux_unsafe::int) })
             .map_err(|e| e.into())
     }
+
+    #[inline(always)]
+    pub fn fd(&self) -> linux_unsafe::int {
+        self.fd
+    }
 }
 
 impl<Device> File<Device> {
