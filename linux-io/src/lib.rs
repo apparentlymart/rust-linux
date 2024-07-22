@@ -43,5 +43,8 @@ pub mod socket;
 /// Synchronization primitives built using Linux kernel features.
 pub mod sync;
 
+/// For safely representing pointers in `ioctl` request types, and similar.
+pub mod ptr;
+
 #[cfg(test)]
 mod tests;
