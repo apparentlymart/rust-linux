@@ -139,11 +139,6 @@ impl File<()> {
             .map(|fd| unsafe { File::from_raw_fd(fd as linux_unsafe::int) })
             .map_err(|e| e.into())
     }
-
-    #[inline(always)]
-    pub fn fd(&self) -> linux_unsafe::int {
-        self.fd
-    }
 }
 
 impl<Device> File<Device> {
@@ -177,6 +172,11 @@ impl<Device> File<Device> {
         result
             .map(|fd| unsafe { Self::from_raw_fd(fd) })
             .map_err(|e| e.into())
+    }
+
+    #[inline(always)]
+    pub fn fd(&self) -> linux_unsafe::int {
+        self.fd
     }
 
     /// Consumes the file object and returns the underlying file descriptor
