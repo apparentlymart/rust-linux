@@ -269,6 +269,16 @@ pub struct linux_dirent64 {
     pub d_name: [char],
 }
 
+pub const DT_UNKNOWN: uchar = 0;
+pub const DT_FIFO: uchar = 1;
+pub const DT_CHR: uchar = 2;
+pub const DT_DIR: uchar = 4;
+pub const DT_BLK: uchar = 6;
+pub const DT_REG: uchar = 8;
+pub const DT_LNK: uchar = 10;
+pub const DT_SOCK: uchar = 12;
+pub const DT_WHT: uchar = 14;
+
 /// Used for [`crate::io_uring_setup`].
 #[derive(Clone, Copy, Debug)]
 #[repr(C)]

@@ -2,6 +2,7 @@ extern crate std;
 use std::vec::Vec;
 use std::{os::unix::prelude::OsStrExt, path::PathBuf};
 
+use fd::{DirEntry, DirEntryType};
 use tempfile::tempdir;
 
 use super::*;
@@ -114,6 +115,49 @@ fn fcntl_dup() {
     drop(f); // close the original
 
     dir.close().expect("failed to clean temporary directory");
+}
+
+#[test]
+fn getdents() {
+    let dirf = File::open(c"testdata/simpledir", OpenOptions::read_only().directory()).unwrap();
+
+    let mut buf = std::vec![0_u8; 256];
+    let mut got: Vec<DirEntry> = dirf.getdents(&mut buf).unwrap().collect();
+    got.sort_unstable_by_key(|e| e.name);
+    for entry in got.iter_mut() {
+        // inode and offset are implementation-dependent, so
+        // we'll just fix them and focus on testing the others.
+        entry.ino = 0xfeedface;
+        entry.off = 0xbeeebeee;
+    }
+    let want = std::vec![
+        DirEntry {
+            ino: 0xfeedface,
+            off: 0xbeeebeee,
+            entry_type: DirEntryType::Dir,
+            name: c".",
+        },
+        DirEntry {
+            ino: 0xfeedface,
+            off: 0xbeeebeee,
+            entry_type: DirEntryType::Dir,
+            name: c"..",
+        },
+        DirEntry {
+            ino: 0xfeedface,
+            off: 0xbeeebeee,
+            entry_type: DirEntryType::Reg,
+            name: c"bar",
+        },
+        DirEntry {
+            ino: 0xfeedface,
+            off: 0xbeeebeee,
+            entry_type: DirEntryType::Dir,
+            name: c"foo",
+        },
+    ];
+
+    assert_eq!(got, want);
 }
 
 #[test]

@@ -1,7 +1,7 @@
 use linux_unsafe::args::AsRawV;
 use linux_unsafe::void;
 
-use crate::result::Result;
+use crate::result::{self, Result};
 use crate::seek::SeekFrom;
 
 use core::cell::UnsafeCell;
@@ -13,6 +13,9 @@ use self::ioctl::SubDevice;
 pub mod fcntl;
 pub mod ioctl;
 pub mod sockopt;
+
+mod direntry;
+pub use direntry::*;
 
 /// An encapsulated Linux file descriptor.
 ///
@@ -58,7 +61,7 @@ impl File<()> {
         Self::open_raw(path, options.flags, mode)
     }
 
-    /// Open a file using the `open` system call.
+    /// Open a file using the `openat` system call.
     ///
     /// This function exposes the raw `flags` and `mode` arguments from the
     /// underlying system call, which the caller must populate appropriately.
@@ -82,7 +85,7 @@ impl File<()> {
             .map_err(|e| e.into())
     }
 
-    /// Create a new file using the `creat` system call.
+    /// Create a new file using the `openat` system call.
     ///
     /// This function exposes the raw `mode` argument from the underlying
     /// system call, which the caller must populate appropriately.
@@ -174,6 +177,54 @@ impl<Device> File<Device> {
             .map_err(|e| e.into())
     }
 
+    /// Open a file relative to the current file, which must represent a
+    /// directory.
+    #[inline]
+    pub fn open_relative(
+        &self,
+        path: &CStr,
+        options: OpenOptions<OpenWithoutMode>,
+    ) -> Result<File<()>> {
+        self.open_relative_raw(path, options.flags, 0)
+    }
+
+    /// Open a file relative to the current file, which must represent a
+    /// directory.
+    #[inline]
+    pub fn open_relative_with_mode(
+        &self,
+        path: &CStr,
+        options: OpenOptions<OpenWithMode>,
+        mode: linux_unsafe::mode_t,
+    ) -> Result<File<()>> {
+        self.open_relative_raw(path, options.flags, mode)
+    }
+
+    /// Open a file using the `openat` system call.
+    ///
+    /// This function exposes the raw `flags` and `mode` arguments from the
+    /// underlying system call, which the caller must populate appropriately.
+    #[inline]
+    pub fn open_relative_raw(
+        &self,
+        path: &CStr,
+        flags: linux_unsafe::int,
+        mode: linux_unsafe::mode_t,
+    ) -> Result<File<()>> {
+        let path_raw = path.as_ptr() as *const linux_unsafe::char;
+        let result = unsafe {
+            linux_unsafe::openat(
+                self.fd,
+                path_raw,
+                flags as linux_unsafe::int,
+                mode as linux_unsafe::mode_t,
+            )
+        };
+        result
+            .map(|fd| unsafe { File::from_raw_fd(fd as linux_unsafe::int) })
+            .map_err(|e| e.into())
+    }
+
     #[inline(always)]
     pub fn fd(&self) -> linux_unsafe::int {
         self.fd
@@ -237,6 +288,41 @@ impl<Device> File<Device> {
         count: linux_unsafe::size_t,
     ) -> Result<linux_unsafe::size_t> {
         let result = unsafe { linux_unsafe::read(self.fd, buf, count) };
+        result.map(|v| v as _).map_err(|e| e.into())
+    }
+
+    /// Read some directory entries from the directory into the given buffer,
+    /// and obtain an iterator over those directory entries.
+    ///
+    /// The caller **must** fully-consume the returned iterator; any items
+    /// not retrieved will be lost.
+    ///
+    /// Once the iterator is dropped the original buffer contains the raw
+    /// directory entries returned from the kernel, and can be used again for
+    /// a subsequent call to this function.
+    #[inline(always)]
+    pub fn getdents<'a>(&self, buf: &'a mut [u8]) -> Result<DirEntries<'a>> {
+        let buf_ptr = buf.as_mut_ptr() as *mut linux_unsafe::void;
+        let buf_size = buf.len();
+        if buf_size > (linux_unsafe::int::MAX as usize) {
+            return Err(result::EINVAL);
+        }
+        let populated_size =
+            unsafe { self.getdents_raw(buf_ptr, buf_size as linux_unsafe::int) }? as usize;
+        Ok(DirEntries::from_getdents64_buffer(&buf[..populated_size]))
+    }
+
+    /// A thin wrapper around the raw `getdents64` system call against this
+    /// file's file descriptor.
+    ///
+    /// Use [`File::getdents`] as a more convenient alternative.
+    #[inline]
+    pub unsafe fn getdents_raw(
+        &self,
+        buf: *mut linux_unsafe::void,
+        buf_len: linux_unsafe::int,
+    ) -> Result<linux_unsafe::size_t> {
+        let result = unsafe { linux_unsafe::getdents64(self.fd, buf, buf_len) };
         result.map(|v| v as _).map_err(|e| e.into())
     }
 
