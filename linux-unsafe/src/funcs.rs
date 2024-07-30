@@ -899,6 +899,25 @@ pub unsafe fn read(fd: int, buf: *mut void, count: size_t) -> Result<ssize_t> {
     syscall!(raw::READ, fd, buf, count)
 }
 
+/// Read value of a symbolic link.
+#[cfg(have_syscall = "readlink")]
+#[inline(always)]
+pub unsafe fn readlink(path: *const char, buf: *const char, bufsiz: size_t) -> Result<int> {
+    syscall!(raw::READLINK, path, buf, bufsiz)
+}
+
+/// Read value of a symbolic link relative to a directory file descriptor.
+#[cfg(have_syscall = "readlinkat")]
+#[inline(always)]
+pub unsafe fn readlinkat(
+    dirfd: int,
+    pathname: *const char,
+    buf: *mut char,
+    bufsiz: size_t,
+) -> Result<int> {
+    syscall!(raw::READLINKAT, dirfd, pathname, buf, bufsiz)
+}
+
 /// Read from a file descriptor into multiple buffers.
 #[cfg(have_syscall = "readv")]
 #[inline(always)]
