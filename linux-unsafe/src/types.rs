@@ -137,6 +137,17 @@ pub const O_NDELAY: int = O_NONBLOCK;
 
 pub const AT_FDCWD: int = -100;
 pub const AT_EMPTY_PATH: int = 0x1000;
+pub const AT_SYMLINK_NOFOLLOW: int = 0x100;
+pub const AT_EACCESS: int = 0x200;
+pub const AT_REMOVEDIR: int = 0x200;
+pub const AT_SYMLINK_FOLLOW: int = 0x400;
+pub const AT_NO_AUTOMOUNT: int = 0x800;
+pub const AT_STATX_SYNC_TYPE: int = 0x6000;
+pub const AT_STATX_SYNC_AS_STAT: int = 0x0000;
+pub const AT_STATX_FORCE_SYNC: int = 0x2000;
+pub const AT_STATX_DONT_SYNC: int = 0x4000;
+pub const AT_RECURSIVE: int = 0x8000;
+pub const AT_HANDLE_FID: int = AT_REMOVEDIR;
 
 /// A file descriptor request object for use with [`crate::poll`].
 #[derive(Clone, Copy, Debug)]
@@ -278,6 +289,64 @@ pub const DT_REG: uchar = 8;
 pub const DT_LNK: uchar = 10;
 pub const DT_SOCK: uchar = 12;
 pub const DT_WHT: uchar = 14;
+
+#[repr(C)]
+#[derive(Clone, Copy, Debug)]
+pub struct statx {
+    pub stx_mask: u32,
+    pub stx_blksize: u32,
+    pub stx_attributes: u64,
+    pub stx_nlink: u32,
+    pub stx_uid: u32,
+    pub stx_gid: u32,
+    pub stx_mode: u16,
+    pub stx_ino: u64,
+    pub stx_size: u64,
+    pub stx_blocks: u64,
+    pub stx_attributes_mask: u64,
+    pub stx_atime: statx_timestamp,
+    pub stx_btime: statx_timestamp,
+    pub stx_ctime: statx_timestamp,
+    pub stx_mtime: statx_timestamp,
+    pub stx_rdev_major: u32,
+    pub stx_rdev_minor: u32,
+    pub stx_dev_major: u32,
+    pub stx_dev_minor: u32,
+    pub stx_mnt_id: u64,
+    pub stx_dio_mem_align: u32,
+    pub stx_dio_offset_align: u32,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy, Debug)]
+pub struct statx_timestamp {
+    pub tv_sec: i64,
+    pub tv_nsec: u32,
+}
+
+pub const STATX_TYPE: u32 = 1;
+pub const STATX_MODE: u32 = 2;
+pub const STATX_NLINK: u32 = 4;
+pub const STATX_UID: u32 = 8;
+pub const STATX_GID: u32 = 0x10;
+pub const STATX_ATIME: u32 = 0x20;
+pub const STATX_MTIME: u32 = 0x40;
+pub const STATX_CTIME: u32 = 0x80;
+pub const STATX_INO: u32 = 0x100;
+pub const STATX_SIZE: u32 = 0x200;
+pub const STATX_BLOCKS: u32 = 0x400;
+pub const STATX_BASIC_STATS: u32 = 0x7ff;
+pub const STATX_BTIME: u32 = 0x800;
+pub const STATX_ALL: u32 = 0xfff;
+pub const STATX_ATTR_COMPRESSED: u64 = 0x4;
+pub const STATX_ATTR_IMMUTABLE: u64 = 0x10;
+pub const STATX_ATTR_APPEND: u64 = 0x20;
+pub const STATX_ATTR_NODUMP: u64 = 0x40;
+pub const STATX_ATTR_ENCRYPTED: u64 = 0x800;
+pub const STATX_ATTR_AUTOMOUNT: u64 = 0x1000;
+pub const STATX_ATTR_MOUNT_ROOT: u64 = 0x2000;
+pub const STATX_ATTR_VERITY: u64 = 0x100000;
+pub const STATX_ATTR_DAX: u64 = 0x200000;
 
 /// Used for [`crate::io_uring_setup`].
 #[derive(Clone, Copy, Debug)]

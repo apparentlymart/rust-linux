@@ -972,6 +972,19 @@ pub unsafe fn splice(
     syscall!(raw::SPLICE, fd_in, off_in, fd_out, off_out, len, flags)
 }
 
+/// Get file status, extended.
+#[cfg(have_syscall = "statx")]
+#[inline(always)]
+pub unsafe fn statx(
+    dirfd: int,
+    pathname: *const char,
+    flags: int,
+    mask: uint,
+    statxbuf: *mut statx,
+) -> Result<int> {
+    syscall!(raw::STATX, dirfd, pathname, flags, mask, statxbuf)
+}
+
 /// Commit all filesystem caches to disk.
 #[cfg(have_syscall = "sync")]
 #[inline(always)]
