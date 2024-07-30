@@ -326,6 +326,62 @@ impl<Device> File<Device> {
         result.map(|v| v as _).map_err(|e| e.into())
     }
 
+    /// Read the content of the symbolic link that the file refers to.
+    ///
+    /// This makes sense only for a file that was opened with the "path only"
+    /// and "no follow symlinks" options.
+    #[inline(always)]
+    pub fn readlink<'a>(&self, buf: &'a mut [u8]) -> Result<&'a [u8]> {
+        let path = c"";
+        let path_raw = path.as_ptr() as *const linux_unsafe::char;
+        let buf_ptr = buf.as_mut_ptr() as *mut linux_unsafe::char;
+        let buf_size = buf.len();
+        if buf_size > (linux_unsafe::int::MAX as usize) {
+            return Err(result::EINVAL);
+        }
+        let result = unsafe { linux_unsafe::readlinkat(self.fd, path_raw, buf_ptr, buf_size) };
+        match result {
+            Ok(populated_size) => Ok(&buf[..populated_size as usize]),
+            Err(e) => Err(e.into()),
+        }
+    }
+
+    /// Read the content of a symbolic link relative to the file, which
+    /// must represent a directory.
+    #[inline(always)]
+    pub fn readlink_relative<'a>(&self, path: &CStr, buf: &'a mut [u8]) -> Result<&'a [u8]> {
+        let path_raw = path.as_ptr() as *const linux_unsafe::char;
+        let buf_ptr = buf.as_mut_ptr() as *mut linux_unsafe::char;
+        let buf_size = buf.len();
+        if buf_size > (linux_unsafe::int::MAX as usize) {
+            return Err(result::EINVAL);
+        }
+        let result = unsafe { linux_unsafe::readlinkat(self.fd, path_raw, buf_ptr, buf_size) };
+        match result {
+            Ok(populated_size) => Ok(&buf[..populated_size as usize]),
+            Err(e) => Err(e.into()),
+        }
+    }
+
+    /// Use a `statx` system call to determine whether a particular path exists
+    /// relative to the file, which must represent a directory.
+    #[inline(always)]
+    pub fn exists_relative(&self, path: &CStr) -> Result<bool> {
+        let path_raw = path.as_ptr() as *const linux_unsafe::char;
+        let mut tmp = unsafe { core::mem::zeroed::<linux_unsafe::statx>() };
+        let result = unsafe { linux_unsafe::statx(self.fd, path_raw, 0, 0, &mut tmp as *mut _) };
+        match result {
+            Ok(_) => Ok(true),
+            Err(e) => {
+                if e.0 == linux_unsafe::result::ENOENT {
+                    Ok(false)
+                } else {
+                    Err(e.into())
+                }
+            }
+        }
+    }
+
     /// Change the current read/write position of the file.
     #[inline]
     pub fn seek(&self, pos: impl Into<SeekFrom>) -> Result<u64> {
