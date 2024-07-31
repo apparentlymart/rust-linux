@@ -65,62 +65,149 @@ impl<'a> Iterator for DirEntries<'a> {
     type Item = DirEntry<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        std::println!(
-            "buffer starts at {:?} and has {} bytes left",
-            self.remain.as_ptr(),
-            self.remain.len()
-        );
-        std::println!("buffer: {:?}", self.remain);
+        let (ret, remain) = dir_entry_from_buf(self.remain);
+        self.remain = remain;
+        ret
+    }
+}
 
-        #[derive(Debug)]
-        #[repr(C)]
-        struct DirEntryHeader {
-            // These fields must match the fixed part of linux_unsafe::linux_dirent64
-            d_ino: linux_unsafe::ino64_t,
-            d_off: linux_unsafe::off64_t,
-            d_reclen: linux_unsafe::ushort,
-            d_type: linux_unsafe::uchar,
-            d_name: (),
+fn dir_entry_from_buf<'a>(buf: &'a [u8]) -> (Option<DirEntry<'a>>, &'a [u8]) {
+    #[derive(Debug)]
+    #[repr(C)]
+    struct DirEntryHeader {
+        // These fields must match the fixed part of linux_unsafe::linux_dirent64
+        d_ino: linux_unsafe::ino64_t,
+        d_off: linux_unsafe::off64_t,
+        d_reclen: linux_unsafe::ushort,
+        d_type: linux_unsafe::uchar,
+        d_name: (),
+    }
+    // NOTE: Because DirEntryHeader has 8-byte alignment, HEADER_SIZE is
+    // 24 (3*8) even though the name begins at offset 19 (NAME_OFFSET).
+    // The kernel leaves padding bytes between the entries to maintain
+    // the needed alignment.
+    const HEADER_SIZE: usize = core::mem::size_of::<DirEntryHeader>();
+    const NAME_OFFSET: usize = core::mem::offset_of!(DirEntryHeader, d_name);
+
+    if buf.len() < HEADER_SIZE {
+        // Not enough bytes left for an entry.
+        return (None, buf);
+    }
+
+    let (raw_len, ino, off, entry_type) = {
+        let hdr_ptr = buf.as_ptr() as *const DirEntryHeader;
+        let hdr = unsafe { &*hdr_ptr };
+        let claimed_len = hdr.d_reclen as usize;
+        if buf.len() < claimed_len || claimed_len < HEADER_SIZE {
+            // Not enough room for the claimed length, or claimed length
+            // shorter than the header. Neither is valid.
+            return (None, buf);
         }
-        // NOTE: Because DirEntryHeader has 8-byte alignment, HEADER_SIZE is
-        // 24 (3*8) even though the name begins at offset 19 (NAME_OFFSET).
-        // The kernel leaves padding bytes between the entries to maintain
-        // the needed alignment.
-        const HEADER_SIZE: usize = core::mem::size_of::<DirEntryHeader>();
-        const NAME_OFFSET: usize = core::mem::offset_of!(DirEntryHeader, d_name);
+        (claimed_len, hdr.d_ino, hdr.d_off, hdr.d_type)
+    };
 
-        if self.remain.len() < HEADER_SIZE {
-            // Not enough bytes left for an entry.
-            return None;
+    let name_len = raw_len - NAME_OFFSET;
+    let name_start = unsafe { buf.as_ptr().add(NAME_OFFSET) } as *const u8;
+    let name = unsafe { slice::from_raw_parts::<'a, _>(name_start, name_len) };
+    let name = CStr::from_bytes_until_nul(name).unwrap();
+
+    let remain = &buf[raw_len..];
+    let ret = DirEntry {
+        ino,
+        off,
+        entry_type: entry_type.into(),
+        name,
+    };
+    (Some(ret), remain)
+}
+
+pub struct AllDirEntries<'file, 'buf, TF, R, D>
+where
+    TF: FnMut(DirEntry<'buf>) -> R,
+{
+    f: Option<&'file crate::File<D>>,
+    buf: &'buf mut [u8],
+    rng: Range,
+    transform: TF,
+}
+
+impl<'file, 'buf, TF, R, D> AllDirEntries<'file, 'buf, TF, R, D>
+where
+    TF: for<'tmp> FnMut(DirEntry<'tmp>) -> R,
+{
+    pub(crate) fn new(f: &'file crate::File<D>, buf: &'buf mut [u8], transform: TF) -> Self {
+        Self {
+            f: Some(f),
+            buf,
+            rng: Range::new(0, 0),
+            transform,
         }
+    }
+}
 
-        let (raw_len, ino, off, entry_type) = {
-            let hdr_ptr = self.remain.as_ptr() as *const DirEntryHeader;
-            let hdr = unsafe { &*hdr_ptr };
-            std::println!("header {hdr:#?}");
-            let claimed_len = hdr.d_reclen as usize;
-            if self.remain.len() < claimed_len || claimed_len < HEADER_SIZE {
-                // Not enough room for the claimed length, or claimed length
-                // shorter than the header. Neither is valid.
-                return None;
+fn try_read_entry<'a>(buf: &'a [u8]) -> (Option<DirEntry<'a>>, usize) {
+    if buf.len() == 0 {
+        return (None, 0);
+    }
+    let (ret, remain) = dir_entry_from_buf(buf);
+    if let Some(entry) = ret {
+        let advance = remain.as_ptr() as usize - buf.as_ptr() as usize;
+        (Some(entry), advance)
+    } else {
+        (None, buf.len())
+    }
+}
+
+impl<'file, 'buf, TF, R, D> Iterator for AllDirEntries<'file, 'buf, TF, R, D>
+where
+    TF: for<'tmp> FnMut(DirEntry<'tmp>) -> R,
+{
+    type Item = Result<R, crate::result::Error>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if let Some(f) = self.f {
+            {
+                let buf = &self.buf[self.rng.start..self.rng.end];
+                let (maybe_entry, advance) = try_read_entry(buf);
+                self.rng.start += advance;
+                if let Some(entry) = maybe_entry {
+                    return Some(Ok((self.transform)(entry)));
+                }
             }
-            (claimed_len, hdr.d_ino, hdr.d_off, hdr.d_type)
-        };
-        std::println!("message has {raw_len:?} bytes, with header length {HEADER_SIZE:?}");
+            let result = unsafe {
+                f.getdents_raw(
+                    self.buf.as_mut_ptr() as *mut _,
+                    self.buf.len() as linux_unsafe::int,
+                )
+            };
+            match result {
+                Ok(result_len) => {
+                    self.rng = Range::new(0, result_len);
+                    let buf = &self.buf[self.rng.start..self.rng.end];
+                    let (maybe_entry, advance) = try_read_entry(buf);
+                    self.rng.start += advance;
+                    maybe_entry.map(|entry| Ok((self.transform)(entry)))
+                }
+                Err(e) => {
+                    self.f = None; // no longer usable
+                    Some(Err(e))
+                }
+            }
+        } else {
+            None
+        }
+    }
+}
 
-        extern crate std;
-        let name_len = raw_len - NAME_OFFSET;
-        let name_start = unsafe { self.remain.as_ptr().add(NAME_OFFSET) } as *const u8;
-        std::println!("name is at {name_start:?} and has {name_len:?} bytes");
-        let name = unsafe { slice::from_raw_parts::<'a, _>(name_start, name_len) };
-        let name = CStr::from_bytes_until_nul(name).unwrap();
+#[derive(Debug, Clone, Copy)]
+struct Range {
+    start: usize,
+    end: usize,
+}
 
-        self.remain = &self.remain[raw_len..];
-        Some(DirEntry {
-            ino,
-            off,
-            entry_type: entry_type.into(),
-            name,
-        })
+impl Range {
+    #[inline(always)]
+    fn new(start: usize, end: usize) -> Self {
+        Self { start, end }
     }
 }

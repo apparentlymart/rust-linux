@@ -312,6 +312,35 @@ impl<Device> File<Device> {
         Ok(DirEntries::from_getdents64_buffer(&buf[..populated_size]))
     }
 
+    /// Read a transformation of every directory entry from the directory.
+    ///
+    /// This wrapper around [`Self::getdents`] returns an iterator that can
+    /// call `Self::getdents` multiple times to visit all of the entries in
+    /// the directory.
+    ///
+    /// However, since all of the calls to `Self::getdents` write into the
+    /// same buffer `buf` it isn't possible for the iterator to directly
+    /// return the borrowed directory entries. Instead, each entry is passed
+    /// to the given function `transform`, which must then return a
+    /// representation of that entry that can outlive the buffer contents.
+    ///
+    /// This admittedly-awkward compromise means that the caller can decide
+    /// how and whether to allocate memory to retain ownership of the directory
+    /// entry names, so that this crate can avoid imposing any particular
+    /// opinion about that.
+    #[inline(always)]
+    pub fn getdents_all<'file, 'buf, TF, R>(
+        &'file self,
+        buf: &'buf mut [u8],
+        transform: TF,
+    ) -> AllDirEntries<TF, R, Device>
+    where
+        TF: for<'tmp> FnMut(DirEntry<'tmp>) -> R,
+        'buf: 'file,
+    {
+        AllDirEntries::new(self, buf, transform)
+    }
+
     /// A thin wrapper around the raw `getdents64` system call against this
     /// file's file descriptor.
     ///

@@ -1,4 +1,5 @@
 extern crate std;
+use core::ffi::CStr;
 use std::vec::Vec;
 use std::{os::unix::prelude::OsStrExt, path::PathBuf};
 
@@ -152,6 +153,106 @@ fn getdents() {
         DirEntry {
             ino: 0xfeedface,
             off: 0xbeeebeee,
+            entry_type: DirEntryType::Dir,
+            name: c"foo",
+        },
+    ];
+
+    assert_eq!(got, want);
+}
+
+#[test]
+fn getdents_all() {
+    let dirf = File::open(c"testdata/simpledir", OpenOptions::read_only().directory()).unwrap();
+
+    #[derive(Debug, PartialEq, Eq)]
+    struct Item {
+        entry_type: DirEntryType,
+        name: CString,
+    }
+    let mut buf = std::vec![0_u8; 28];
+    let mut got: Vec<_> = dirf
+        .getdents_all(&mut buf, |entry| Item {
+            entry_type: entry.entry_type,
+            name: entry.name.into(),
+        })
+        .map(|result| result.unwrap())
+        .collect();
+    got.sort_unstable_by(|a, b| a.name.cmp(&b.name));
+    let want = std::vec![
+        Item {
+            entry_type: DirEntryType::Dir,
+            name: c".".into(),
+        },
+        Item {
+            entry_type: DirEntryType::Dir,
+            name: c"..".into(),
+        },
+        Item {
+            entry_type: DirEntryType::Reg,
+            name: c"bar".into(),
+        },
+        Item {
+            entry_type: DirEntryType::Dir,
+            name: c"foo".into(),
+        },
+    ];
+
+    assert_eq!(got, want);
+}
+
+#[test]
+fn getdents_all_fnmut() {
+    // This is a rather esotaric use of `getdents_all` which accumulates
+    // the entry names all into a single Vec and then handles them as
+    // immutable CStr views into that Vec. The main point of this is just
+    // to make sure getdents_all allows the transform function to mutate
+    // symbols that it captures.
+
+    let dirf = File::open(c"testdata/simpledir", OpenOptions::read_only().directory()).unwrap();
+
+    #[derive(Debug, PartialEq, Eq)]
+    struct Item<'a> {
+        entry_type: DirEntryType,
+        name: &'a CStr,
+    }
+
+    let mut buf = std::vec![0_u8; 28];
+    let mut names_buf = Vec::<u8>::new();
+    let tmp: Vec<_> = dirf
+        .getdents_all(&mut buf, |entry| {
+            let start_idx = names_buf.len();
+            names_buf.extend(entry.name.to_bytes_with_nul());
+            (entry.entry_type, start_idx, names_buf.len())
+        })
+        .map(|result| result.unwrap())
+        .collect();
+    let mut got: Vec<_> = tmp
+        .iter()
+        .map(|(entry_type, start_idx, end_idx)| {
+            let name_bytes = &names_buf[*start_idx..*end_idx];
+            Item {
+                entry_type: *entry_type,
+                name: CStr::from_bytes_with_nul(name_bytes).unwrap(),
+            }
+        })
+        .collect();
+    got.sort_unstable_by_key(|e| e.name);
+
+    let want = std::vec![
+        Item {
+            entry_type: DirEntryType::Dir,
+            name: c".",
+        },
+        Item {
+            entry_type: DirEntryType::Dir,
+            name: c"..",
+        },
+        Item {
+            entry_type: DirEntryType::Reg,
+            name: c"bar",
+        },
+        Item {
             entry_type: DirEntryType::Dir,
             name: c"foo",
         },
