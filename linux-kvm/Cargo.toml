@@ -1,12 +1,12 @@
 [package]
 description = "Safe API to the Linux KVM API."
 name = "linux-kvm"
-version = "0.5.0"
+version = "0.6.0"
 
 edition = "2021"
 license = "MIT"
 repository = "https://github.com/apparentlymart/rust-linux"
 
 [dependencies]
-linux-io = {path = "../linux-io", version = "0.11.0"}
+linux-io = {path = "../linux-io", version = "0.12.0" }
 linux-unsafe = {path = "../linux-unsafe", version = "0.12.0"}
