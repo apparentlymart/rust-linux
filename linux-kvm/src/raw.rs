@@ -95,7 +95,15 @@ pub struct aarch64_user_fpsimd_state {
 pub struct kvm_regs {
     // The RISC-V port does not support getting/setting
     // all registers together. It only supports individual
-    // register accesses using the GET_REG/SET_REG operations.
+    // register accesses using the GET_ONE_REG/SET_ONE_REG operations.
+}
+
+#[allow(non_camel_case_types)]
+#[derive(Clone, Copy, Debug)]
+#[repr(C)]
+pub struct kvm_one_reg {
+    pub id: u64,
+    pub addr: u64,
 }
 
 /// Used for the `exit_details` field of [`kvm_run`].

@@ -29,3 +29,19 @@ pub const KVM_SET_REGS: IoctlReqWrite<KvmVcpu, crate::raw::kvm_regs> = unsafe {
         core::mem::size_of::<crate::raw::kvm_regs>() as linux_unsafe::ulong,
     ))
 };
+
+pub const KVM_GET_ONE_REG: IoctlReqRead<KvmVcpu, crate::raw::kvm_one_reg> = unsafe {
+    ioctl_read(_IOR(
+        KVMIO,
+        0xab,
+        core::mem::size_of::<crate::raw::kvm_one_reg>() as linux_unsafe::ulong,
+    ))
+};
+
+pub const KVM_SET_ONE_REG: IoctlReqWrite<KvmVcpu, crate::raw::kvm_one_reg> = unsafe {
+    ioctl_write(_IOW(
+        KVMIO,
+        0xac,
+        core::mem::size_of::<crate::raw::kvm_one_reg>() as linux_unsafe::ulong,
+    ))
+};
