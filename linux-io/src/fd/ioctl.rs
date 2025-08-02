@@ -125,6 +125,25 @@ where
     }
 }
 
+/// Constructs a new read-only [`IoctlReq`] with a fixed request code that
+/// passes a constant integer to `ioctl` and returns its result in the system
+/// call return value.
+///
+/// Safety: Callers must ensure that the given `request` is valid.
+pub const unsafe fn ioctl_const_arg<Device, Result, const ARG: int>(
+    request: ulong,
+) -> IoctlReqConstArg<Device, Result, ARG>
+where
+    *mut Result: AsRawV,
+    Device: IoDevice,
+    Result: FromIoctlResult<int>,
+{
+    IoctlReqConstArg::<Device, Result, ARG> {
+        request,
+        _phantom: core::marker::PhantomData,
+    }
+}
+
 /// Constructs a new read-only [`IoctlReq`] with a fixed request code and
 /// a result type that maps directly to the data the kernel will
 /// provide.
@@ -249,6 +268,55 @@ where
         _: &mut MaybeUninit<Self::TempMem>,
     ) -> (ulong, Self::RawArg) {
         (self.request, ())
+    }
+
+    #[inline(always)]
+    fn prepare_ioctl_result(
+        &self,
+        raw: int,
+        _: &Self::ExtArg,
+        _: &MaybeUninit<Self::TempMem>,
+    ) -> Self::Result {
+        Self::Result::from_ioctl_result(&raw)
+    }
+}
+
+/// Implementation of [`IoctlReq`] with a fixed `cmd` and passing a constant
+/// int as the argument, then returning the kernel's result value.
+#[repr(transparent)]
+pub struct IoctlReqConstArg<Device: IoDevice, Result, const ARG: int> {
+    request: ulong,
+    _phantom: core::marker::PhantomData<(Device, Result)>,
+}
+
+impl<Device: IoDevice, Result, const ARG: int> Clone for IoctlReqConstArg<Device, Result, ARG> {
+    fn clone(&self) -> Self {
+        Self {
+            request: self.request,
+            _phantom: core::marker::PhantomData,
+        }
+    }
+}
+impl<Device: IoDevice, Result, const ARG: int> Copy for IoctlReqConstArg<Device, Result, ARG> {}
+
+unsafe impl<'a, Device, Result, const ARG: int> IoctlReq<'a, Device>
+    for IoctlReqConstArg<Device, Result, ARG>
+where
+    Result: 'a + FromIoctlResult<int>,
+    Device: 'a + IoDevice,
+{
+    type ExtArg = ();
+    type TempMem = ();
+    type RawArg = int;
+    type Result = Result;
+
+    #[inline(always)]
+    fn prepare_ioctl_args(
+        &self,
+        _: &Self::ExtArg,
+        _: &mut MaybeUninit<Self::TempMem>,
+    ) -> (ulong, Self::RawArg) {
+        (self.request, ARG)
     }
 
     #[inline(always)]

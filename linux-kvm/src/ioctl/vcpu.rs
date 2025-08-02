@@ -1,6 +1,6 @@
 use linux_io::fd::ioctl::{
-    ioctl_no_arg, ioctl_read, ioctl_write, IoctlReqNoArgs, IoctlReqRead, IoctlReqWrite, _IO, _IOR,
-    _IOW,
+    ioctl_const_arg, ioctl_read, ioctl_write, IoctlReqConstArg, IoctlReqRead, IoctlReqWrite, _IO,
+    _IOR, _IOW,
 };
 use linux_unsafe::int;
 
@@ -12,7 +12,7 @@ pub struct KvmVcpu;
 
 impl linux_io::fd::ioctl::IoDevice for KvmVcpu {}
 
-pub const KVM_RUN: IoctlReqNoArgs<KvmVcpu, int> = unsafe { ioctl_no_arg(_IO(KVMIO, 0x80)) };
+pub const KVM_RUN: IoctlReqConstArg<KvmVcpu, int, 0> = unsafe { ioctl_const_arg(_IO(KVMIO, 0x80)) };
 
 pub const KVM_GET_REGS: IoctlReqRead<KvmVcpu, crate::raw::kvm_regs> = unsafe {
     ioctl_read(_IOR(

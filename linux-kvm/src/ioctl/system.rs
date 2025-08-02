@@ -1,4 +1,6 @@
-use linux_io::fd::ioctl::{ioctl_no_arg, ioctl_write, IoctlReqNoArgs, IoctlReqWrite, _IO, _IOW};
+use linux_io::fd::ioctl::{
+    ioctl_const_arg, ioctl_write, IoctlReqConstArg, IoctlReqWrite, _IO, _IOW,
+};
 use linux_io::File;
 use linux_unsafe::{int, ulong};
 
@@ -18,14 +20,14 @@ pub(crate) const KVMIO: ulong = 0xAE;
 /// any value other than that; the version number is not expected to change
 /// in the future because future API additions will use [`KVM_CHECK_EXTENSION`]
 /// instead.
-pub const KVM_GET_API_VERSION: IoctlReqNoArgs<KvmSystem, int> =
-    unsafe { ioctl_no_arg(_IO(KVMIO, 0x00)) };
+pub const KVM_GET_API_VERSION: IoctlReqConstArg<KvmSystem, int, 0> =
+    unsafe { ioctl_const_arg(_IO(KVMIO, 0x00)) };
 
 /// Create a new virtual machine and obtain the file that represents it.
 ///
 /// The resulting file accepts the `ioctl` requests defined in [`super::vm`].
-pub const KVM_CREATE_VM: IoctlReqNoArgs<KvmSystem, File<super::vm::KvmVm>> =
-    unsafe { ioctl_no_arg(_IO(KVMIO, 0x01)) };
+pub const KVM_CREATE_VM: IoctlReqConstArg<KvmSystem, File<super::vm::KvmVm>, 0> =
+    unsafe { ioctl_const_arg(_IO(KVMIO, 0x01)) };
 
 /// Query whether the KVM subsystem in the current kernel supports a particular
 /// extension.
@@ -44,5 +46,5 @@ pub const KVM_CHECK_EXTENSION: IoctlReqWrite<KvmSystem, int, int> =
 ///
 /// The [`super::vcpu::KVM_RUN`] ioctl request communicates with userspace via
 /// a shared memory region. This ioctl request returns the size of that region.
-pub const KVM_GET_VCPU_MMAP_SIZE: IoctlReqNoArgs<KvmSystem, int> =
-    unsafe { ioctl_no_arg(_IO(KVMIO, 0x04)) };
+pub const KVM_GET_VCPU_MMAP_SIZE: IoctlReqConstArg<KvmSystem, int, 0> =
+    unsafe { ioctl_const_arg(_IO(KVMIO, 0x04)) };
