@@ -105,6 +105,7 @@ fn generate_syscall_constants_rs(
             writeln!(f, "pub const {}: V = {};", name, v)?;
         }
     }
+    println!("cargo::rustc-check-cfg=cfg(have_syscall, values(any()))");
     Ok(())
 }
 

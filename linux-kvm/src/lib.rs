@@ -85,7 +85,7 @@ impl Kvm {
 
     /// Create a new virtual machine.
     #[inline(always)]
-    pub fn create_vm(&self) -> Result<VirtualMachine> {
+    pub fn create_vm(&self) -> Result<VirtualMachine<'_>> {
         let f = self.f.ioctl(ioctl::system::KVM_CREATE_VM, ())?;
         Ok(VirtualMachine::from_file(f, &self))
     }
@@ -130,7 +130,7 @@ impl<'a> VirtualMachine<'a> {
     /// platform-specific limit on VCPUs per VM, which you can determine by
     /// querying extensions using [`Self::check_extension`].
     #[inline(always)]
-    pub fn create_vcpu(&self, cpu_id: linux_unsafe::int) -> Result<VirtualCpu> {
+    pub fn create_vcpu(&self, cpu_id: linux_unsafe::int) -> Result<VirtualCpu<'_>> {
         self.f
             .ioctl(ioctl::vm::KVM_CREATE_VCPU, cpu_id)
             .map(|f| VirtualCpu::from_file(f, &self.kvm))

@@ -333,7 +333,7 @@ impl<Device> File<Device> {
         &'file self,
         buf: &'buf mut [u8],
         transform: TF,
-    ) -> AllDirEntries<TF, R, Device>
+    ) -> AllDirEntries<'file, 'buf, TF, R, Device>
     where
         TF: for<'tmp> FnMut(DirEntry<'tmp>) -> R,
         'buf: 'file,
