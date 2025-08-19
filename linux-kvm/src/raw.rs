@@ -1,5 +1,7 @@
 //! Raw data types for use with various KVM `ioctl` requests.
 
+use linux_unsafe::ulong;
+
 /// The layout of the shared memory region used to communicate with the
 /// `KVM_RUN` ioctl request, which is `mmap`ed from the VCPU's file descriptor.
 #[allow(non_camel_case_types)]
@@ -15,6 +17,12 @@ pub struct kvm_run {
     pub flags: u16,
     pub cr8: u64,
     pub apic_base: u64,
+
+    #[cfg(target_arch = "s390x")]
+    pub psw_mask: u64,
+    #[cfg(target_arch = "s390x")]
+    pub psw_addr: u64,
+
     pub exit_details: ExitDetails,
 }
 
@@ -106,6 +114,14 @@ pub struct kvm_one_reg {
     pub addr: u64,
 }
 
+#[allow(non_camel_case_types)]
+#[derive(Clone, Copy, Debug)]
+#[repr(C)]
+pub struct kvm_debug_exit_arch {
+    // TODO: Use conditional compilation to vary this by target architecture,
+    // for those that actually use this.
+}
+
 /// Used for the `exit_details` field of [`kvm_run`].
 #[derive(Clone, Copy)]
 #[repr(C)]
@@ -114,7 +130,13 @@ pub union ExitDetails {
     pub fail_entry: ExitFailEntry,
     pub ex: ExitException,
     pub io: ExitIo,
+    pub debug: ExitDebug,
     pub mmio: ExitMmio,
+    pub system_event: ExitSystemEvent,
+    pub riscv_sbi: ExitRiscvSbi,
+    pub riscv_csr: ExitRiscvCsr,
+    pub notify: ExitNotify,
+    pub memory_fault: ExitMemoryFault,
     // TODO: The rest of these
     pub padding: [linux_unsafe::char; 256],
 }
@@ -157,9 +179,55 @@ pub struct ExitIo {
 
 #[derive(Clone, Copy, Debug)]
 #[repr(C)]
+pub struct ExitDebug {
+    pub arch: kvm_debug_exit_arch,
+}
+
+#[derive(Clone, Copy, Debug)]
+#[repr(C)]
 pub struct ExitMmio {
     pub phys_addr: u64,
     pub data: [u8; 8],
     pub len: u32,
     pub is_write: u8,
+}
+
+#[derive(Clone, Copy, Debug)]
+#[repr(C)]
+pub struct ExitSystemEvent {
+    pub type_: u32,
+    pub ndata: u32,
+    pub data: [u64; 16],
+}
+
+#[derive(Clone, Copy, Debug)]
+#[repr(C)]
+pub struct ExitRiscvSbi {
+    pub extension_id: ulong,
+    pub function_id: ulong,
+    pub args: [ulong; 6],
+    pub ret: [ulong; 2],
+}
+
+#[derive(Clone, Copy, Debug)]
+#[repr(C)]
+pub struct ExitRiscvCsr {
+    pub csr_num: ulong,
+    pub new_value: ulong,
+    pub write_mask: ulong,
+    pub ret_value: ulong,
+}
+
+#[derive(Clone, Copy, Debug)]
+#[repr(C)]
+pub struct ExitNotify {
+    pub flags: u32,
+}
+
+#[derive(Clone, Copy, Debug)]
+#[repr(C)]
+pub struct ExitMemoryFault {
+    pub flags: u32,
+    pub gpa: u32,
+    pub size: u32,
 }
