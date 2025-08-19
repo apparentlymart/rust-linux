@@ -6,6 +6,7 @@
 //! low-cost safe abstractions on top of [`linux_io`], so it doesn't support
 //! the full KVM API. Hopefully over time it'll gain enough to be useful.
 #![no_std]
+#![cfg_attr(feature = "nightly", feature(debug_closure_helpers))]
 
 pub mod ioctl;
 pub mod raw;

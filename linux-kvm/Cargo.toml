@@ -8,5 +8,8 @@ license = "MIT"
 repository = "https://github.com/apparentlymart/rust-linux"
 
 [dependencies]
-linux-io = {path = "../linux-io", version = "0.12.0" }
+linux-io = {path = "../linux-io", version = "0.12.0"}
 linux-unsafe = {path = "../linux-unsafe", version = "0.12.0"}
+
+[features]
+nightly = []

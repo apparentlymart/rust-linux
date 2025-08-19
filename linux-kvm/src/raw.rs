@@ -5,7 +5,7 @@ use linux_unsafe::ulong;
 /// The layout of the shared memory region used to communicate with the
 /// `KVM_RUN` ioctl request, which is `mmap`ed from the VCPU's file descriptor.
 #[allow(non_camel_case_types)]
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy)]
 #[repr(C)]
 pub struct kvm_run {
     pub request_interrupt_window: u8,
@@ -24,6 +24,82 @@ pub struct kvm_run {
     pub psw_addr: u64,
 
     pub exit_details: ExitDetails,
+}
+
+impl core::fmt::Debug for kvm_run {
+    #[inline(never)]
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        let mut ds = f.debug_struct("kvm_run");
+        ds.field("request_interrupt_window", &self.request_interrupt_window)
+            .field("immediate_exit", &self.immediate_exit)
+            .field("padding1", &self.padding1)
+            .field("exit_reason", &self.exit_reason)
+            .field(
+                "ready_for_interrupt_injection",
+                &self.ready_for_interrupt_injection,
+            )
+            .field("if_flag", &self.if_flag)
+            .field("flags", &self.flags)
+            .field("cr8", &self.cr8)
+            .field("apic_base", &self.apic_base);
+
+        #[cfg(target_arch = "s390x")]
+        {
+            ds.field("psw_mask", &self.psw_mask)
+                .field("psw_addr", &self.psw_addr);
+        }
+
+        #[cfg(not(feature = "nightly"))]
+        ds.field("exit_details", &self.exit_details);
+        // more useful debug info when DebugStruct.field_with is available
+        #[cfg(feature = "nightly")]
+        ds.field_with(
+            "exit_details",
+            #[inline(never)]
+            |f| {
+                let mut ds = f.debug_struct("ExitDetails");
+                // The following is technically unsound because all of the fields
+                // are pub and so it's possible to construct a value where
+                // exit_reason disagrees with exit_details, but all of the variants
+                // are just plain data without any implicit padding and with
+                // field types where all bit patterns are valid, so this should
+                // be okay in practice and makes this debug output far more useful.
+                match self.exit_reason {
+                    0 => ds.field("hw", unsafe { &self.exit_details.hw }).finish(),
+                    1 => ds
+                        .field("exception", unsafe { &self.exit_details.ex })
+                        .finish(),
+                    2 => ds.field("io", unsafe { &self.exit_details.io }).finish(),
+                    4 => ds
+                        .field("debug", unsafe { &self.exit_details.debug })
+                        .finish(),
+                    6 => ds
+                        .field("mmio", unsafe { &self.exit_details.mmio })
+                        .finish(),
+                    9 => ds
+                        .field("fail_entry", unsafe { &self.exit_details.fail_entry })
+                        .finish(),
+                    24 => ds
+                        .field("system_event", unsafe { &self.exit_details.system_event })
+                        .finish(),
+                    35 => ds
+                        .field("riscv_sbi", unsafe { &self.exit_details.riscv_sbi })
+                        .finish(),
+                    36 => ds
+                        .field("riscv_csr", unsafe { &self.exit_details.riscv_csr })
+                        .finish(),
+                    37 => ds
+                        .field("notify", unsafe { &self.exit_details.notify })
+                        .finish(),
+                    39 => ds
+                        .field("memory_fault", unsafe { &self.exit_details.memory_fault })
+                        .finish(),
+                    _ => ds.finish_non_exhaustive(),
+                }
+            },
+        );
+        ds.finish()
+    }
 }
 
 #[allow(non_camel_case_types)]
@@ -143,7 +219,7 @@ pub union ExitDetails {
 
 impl core::fmt::Debug for ExitDetails {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        f.debug_struct("ExitDetails").finish()
+        f.debug_struct("ExitDetails").finish_non_exhaustive()
     }
 }
 
