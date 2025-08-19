@@ -1,6 +1,6 @@
 use linux_io::fd::ioctl::{
-    ioctl_const_arg, ioctl_read, ioctl_write, IoctlReqConstArg, IoctlReqRead, IoctlReqWrite, _IO,
-    _IOR, _IOW,
+    ioctl_const_arg, ioctl_read, ioctl_write, ioctl_writeread, IoctlReqConstArg, IoctlReqRead,
+    IoctlReqWrite, IoctlReqWriteRead, _IO, _IOR, _IOW,
 };
 use linux_unsafe::int;
 
@@ -30,8 +30,8 @@ pub const KVM_SET_REGS: IoctlReqWrite<KvmVcpu, crate::raw::kvm_regs> = unsafe {
     ))
 };
 
-pub const KVM_GET_ONE_REG: IoctlReqRead<KvmVcpu, crate::raw::kvm_one_reg> = unsafe {
-    ioctl_read(_IOR(
+pub const KVM_GET_ONE_REG: IoctlReqWriteRead<KvmVcpu, crate::raw::kvm_one_reg> = unsafe {
+    ioctl_writeread(_IOR(
         KVMIO,
         0xab,
         core::mem::size_of::<crate::raw::kvm_one_reg>() as linux_unsafe::ulong,
